@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 3eccedbfd47feb8448edc2b7705f970c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Map Markers/Spawner Marker.asset
+  uploadId: 982060

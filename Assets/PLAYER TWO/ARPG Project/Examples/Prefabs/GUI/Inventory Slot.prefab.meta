@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 810d2aa7697ebf5428675994e84b62b8
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/GUI/Inventory Slot.prefab
+  uploadId: 982060

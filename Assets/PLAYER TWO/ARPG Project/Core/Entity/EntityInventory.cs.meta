@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 55a7f9063e2fe50469032a2637d95d4e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Core/Entity/EntityInventory.cs
+  uploadId: 982060

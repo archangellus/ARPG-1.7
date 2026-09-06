@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e4030a56f3f4c564c9bd47a69341fa1a
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Garnet.asset
+  uploadId: 982060

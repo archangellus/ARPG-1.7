@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 9f90e362963b7164380842f445eb536d
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/Misc/Spawner.prefab
+  uploadId: 982060

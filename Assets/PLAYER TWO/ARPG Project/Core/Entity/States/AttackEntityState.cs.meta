@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 571f6a573b7d6504b87cb51e7d77b1eb
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Core/Entity/States/AttackEntityState.cs
+  uploadId: 982060

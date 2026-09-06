@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 41dcd4a6f82a5ef408a65b54dba73908
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Core/Entity/EntityFeedback.cs
+  uploadId: 982060

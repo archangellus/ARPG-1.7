@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 662b51de46ca6e445a6c2564a8cf35a6
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/GUI/Item Inspector.prefab
+  uploadId: 982060

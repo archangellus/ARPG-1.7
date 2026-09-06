@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 96d45a2f46277ba48908a3fce2a861d0
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Topaz.asset
+  uploadId: 982060

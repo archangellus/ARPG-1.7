@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 17a0ac508acea0940955b8bcc2fefcb1
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/Particles/Town Portal
+    Particle.prefab
+  uploadId: 982060

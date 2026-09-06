@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bbc1ed36a6353be419a39af12173b9e2
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 23800000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Scenes/Tutorial/NavMesh-__NAV_MESH_SURFACE__.asset
+  uploadId: 982060

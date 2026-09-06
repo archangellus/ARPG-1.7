@@ -1,0 +1,5 @@
+﻿{
+    "description": "The Infinity Wardrobe plug-in extends the ARPG Project's EntityItemManager with a third Item System management path. \nBesides Character Pieces and Item Renderers, equipped armor can now activate or deactivate the objects that belong to Infinity PBR “Wardrobe” groups and without any need to clutter the player with armor objects and without editing any ARPG Project file.",
+    "previewImageRelativePath": "pluginDetails/plugin_preview.png",
+    "iconRelativePath": ""
+}

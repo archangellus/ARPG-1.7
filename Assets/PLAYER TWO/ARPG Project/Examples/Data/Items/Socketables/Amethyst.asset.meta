@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 426178b3b2a210d4f9e623cbec58b4ca
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Amethyst.asset
+  uploadId: 982060

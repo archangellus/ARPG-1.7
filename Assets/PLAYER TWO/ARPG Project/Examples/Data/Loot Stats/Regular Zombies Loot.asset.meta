@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: ff5db1ea8bce5a7418e7a67dbd77e3e5
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Loot Stats/Regular Zombies
+    Loot.asset
+  uploadId: 982060

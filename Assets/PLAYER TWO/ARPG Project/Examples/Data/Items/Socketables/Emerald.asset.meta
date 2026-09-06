@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c83ddef7f1b4d6f4d8b843a3f780ff59
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Emerald.asset
+  uploadId: 982060

@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: fe840a3f8cf742e48b08da8d45b27976
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Skills/Arrows Rain
+    Book.asset
+  uploadId: 982060

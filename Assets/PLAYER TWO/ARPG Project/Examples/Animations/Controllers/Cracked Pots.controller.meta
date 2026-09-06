@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: cd8da3b797a608245ae109e114b6004c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Animations/Controllers/Cracked
+    Pots.controller
+  uploadId: 982060

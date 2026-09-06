@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 2861c5516ad31ac468702cb312750d50
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Map Markers/Town Portal
+    Marker.asset
+  uploadId: 982060

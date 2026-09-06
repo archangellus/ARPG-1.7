@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c330d876f70dac54fa843a8bb9f3f6f9
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Sapphire.asset
+  uploadId: 982060

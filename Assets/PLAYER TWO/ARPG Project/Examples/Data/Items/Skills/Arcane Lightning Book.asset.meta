@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 1891084be3dec44468e25a27ddf19725
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Skills/Arcane Lightning
+    Book.asset
+  uploadId: 982060

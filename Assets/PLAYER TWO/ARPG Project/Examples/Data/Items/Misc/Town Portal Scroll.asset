@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 517e4a5839fd3bc47b85022f34f8c059, type: 3}
+  m_Name: Town Portal Scroll
+  m_EditorClassIdentifier: 
+  prefab: {fileID: 919132149155446097, guid: f8e197c11ff92424a9e7601658cb1343, type: 3}
+  price: 100
+  dropPosition: {x: 0, y: 0, z: 0}
+  dropRotation: {x: -90, y: 0, z: 45}
+  image: {fileID: 21300000, guid: 0ddb0131d717d9f4199119ea9584b61b, type: 3}
+  rows: 2
+  columns: 1
+  canStack: 1
+  stackCapacity: 99
+  consumeImmediately: 1
+  consumeSound: {fileID: 0}
+  consumeParticles: {fileID: 0}
+  particleOffset: {x: 0, y: 0, z: 0}
+  pcInstruction: Press 'Right-Click' to open
+  mobileInstruction: Double Tap to open

@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: f1b7d4058113ec6478673376b3e63333
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 22100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Animations/Overrides/Humanoid
+    Crossbow.overrideController
+  uploadId: 982060

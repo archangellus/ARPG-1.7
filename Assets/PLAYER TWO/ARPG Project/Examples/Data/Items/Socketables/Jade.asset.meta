@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 26d61c96e8a043b41b3a5e9c9babf0cb
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 251134
+  packageName: ARPG Project
+  packageVersion: 1.8.0
+  assetPath: Assets/PLAYER TWO/ARPG Project/Examples/Data/Items/Socketables/Jade.asset
+  uploadId: 982060
