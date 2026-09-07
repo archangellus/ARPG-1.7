@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
@@ -102,10 +103,20 @@ namespace PLAYERTWO.ARPGProject
         )]
         public float comparisonInspectorMargin = 2f;
 
+        [Header("Comparison Input")]
+        [Tooltip(
+            "An optional Input System action that toggles equipped item comparisons. If no "
+                + "action is assigned, the Alt key is used. Only relevant on the primary inspector."
+        )]
+        public InputActionReference comparisonToggleAction;
+
         protected CanvasGroup m_group;
         protected ItemInstance m_item;
         protected bool m_onMerchant;
         protected System.Action m_updateAllHandler;
+        protected InputAction m_defaultComparisonToggleAction;
+        protected bool m_comparisonActionAutoEnabled;
+        protected bool m_showComparison;
 
         /// <summary>
         /// Returns the player Entity. Resolved lazily rather than cached in Start, since a
@@ -126,6 +137,61 @@ namespace PLAYERTWO.ARPGProject
             m_group.blocksRaycasts = false;
         }
 
+        protected virtual InputAction comparisonAction =>
+            comparisonToggleAction != null
+                ? comparisonToggleAction.action
+                : m_defaultComparisonToggleAction;
+
+        protected override void Awake()
+        {
+            base.Awake();
+
+            if (independentPositioning && comparisonToggleAction == null)
+            {
+                m_defaultComparisonToggleAction = new InputAction(
+                    "Toggle Item Compare",
+                    InputActionType.Button,
+                    "<Keyboard>/alt"
+                );
+            }
+        }
+
+        protected virtual void OnEnable()
+        {
+            if (!independentPositioning || comparisonAction == null || comparisonAction.enabled)
+                return;
+
+            comparisonAction.Enable();
+            m_comparisonActionAutoEnabled = true;
+        }
+
+        protected virtual void OnDisable()
+        {
+            if (m_comparisonActionAutoEnabled && comparisonAction != null)
+                comparisonAction.Disable();
+
+            m_comparisonActionAutoEnabled = false;
+            m_showComparison = false;
+        }
+
+        protected virtual void OnDestroy()
+        {
+            m_defaultComparisonToggleAction?.Dispose();
+        }
+
+        protected virtual void Update()
+        {
+            if (
+                independentPositioning
+                && comparisonAction != null
+                && comparisonAction.WasPressedThisFrame()
+            )
+            {
+                m_showComparison = !m_showComparison;
+                UpdateComparison();
+            }
+        }
+
         /// <summary>
         /// Shows the inspector with information from a given Item Instance.
         /// </summary>
@@ -143,7 +209,8 @@ namespace PLAYERTWO.ARPGProject
             m_rect.SetAsLastSibling();
             UpdateAll();
             FadIn();
-            UpdateComparison();
+            if (m_showComparison)
+                UpdateComparison();
         }
 
         /// <summary>
@@ -181,6 +248,16 @@ namespace PLAYERTWO.ARPGProject
         {
             if (comparisonInspector == null)
                 return;
+
+            if (!m_showComparison)
+            {
+                comparisonInspector.Hide();
+
+                if (secondaryComparisonInspector != null)
+                    secondaryComparisonInspector.Hide();
+
+                return;
+            }
 
             var counterpart = m_item.GetEquippedCounterpart(entity.items);
 
