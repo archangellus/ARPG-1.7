@@ -46,13 +46,34 @@ namespace PLAYERTWO.ARPGProject
 
         public static CharacterQuests CreateFromSerializer(QuestsSerializer serializer)
         {
+            if (serializer?.quests == null)
+                return new CharacterQuests();
+
             var quests = serializer.quests.Select(q =>
             {
+                if (q == null)
+                {
+                    Debug.LogWarning(
+                        "A quest won't be loaded from the save file because its data is missing."
+                    );
+                    return null;
+                }
+
                 var data = GameDatabase.instance.FindElementById<Quest>(q.questId);
+
+                if (data == null)
+                {
+                    Debug.LogWarning(
+                        $"Quest with id '{q.questId}' won't be loaded from the save file "
+                            + "because it was not found in the game database."
+                    );
+                    return null;
+                }
+
                 return new QuestInstance(data, q.progress, q.state);
             });
 
-            return new CharacterQuests(quests.ToArray());
+            return new CharacterQuests(quests.Where(q => q != null).ToArray());
         }
     }
 }
