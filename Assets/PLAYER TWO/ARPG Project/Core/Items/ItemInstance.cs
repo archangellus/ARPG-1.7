@@ -478,6 +478,84 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
+        /// Returns signed differences for comparable base properties against an equipped item.
+        /// Durability and requirements are excluded because they describe item state and
+        /// eligibility rather than equipment benefits.
+        /// </summary>
+        public virtual string InspectBaseDifferences(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            if (reference == null)
+                return "";
+
+            var text = "";
+
+            void Add(string label, int candidate, int equipped)
+            {
+                var difference = candidate - equipped;
+
+                if (difference == 0)
+                    return;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+                text += $"{label}: {signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)}";
+            }
+
+            if (IsArmor() && reference.IsArmor())
+                Add(
+                    "Defense difference",
+                    GetArmor().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetArmor().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+            else if (IsShield() && reference.IsShield())
+            {
+                Add(
+                    "Defense difference",
+                    GetShield().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetShield().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+                Add(
+                    "Block chance difference",
+                    Mathf.RoundToInt(GetEffectiveChanceToBlock() * 100),
+                    Mathf.RoundToInt(reference.GetEffectiveChanceToBlock() * 100)
+                );
+            }
+            else if (IsWeapon() && reference.IsWeapon())
+            {
+                var rarity = GetRarity();
+                var referenceRarity = reference.GetRarity();
+                var damageBonus = rarity != null ? rarity.bonusDamage : 0;
+                var referenceDamageBonus =
+                    referenceRarity != null ? referenceRarity.bonusDamage : 0;
+                Add(
+                    "Minimum damage difference",
+                    GetWeapon().minDamage + damageBonus,
+                    reference.GetWeapon().minDamage + referenceDamageBonus
+                );
+                Add(
+                    "Maximum damage difference",
+                    GetWeapon().maxDamage + damageBonus,
+                    reference.GetWeapon().maxDamage + referenceDamageBonus
+                );
+                Add(
+                    "Attack speed difference",
+                    GetEffectiveAttackSpeed(),
+                    reference.GetEffectiveAttackSpeed()
+                );
+            }
+
+            return text;
+        }
+
+        /// <summary>
         /// Returns the selling price of this Item Instance.
         /// </summary>
         public virtual int GetSellPrice() => (int)(GetPrice() / 2f);
