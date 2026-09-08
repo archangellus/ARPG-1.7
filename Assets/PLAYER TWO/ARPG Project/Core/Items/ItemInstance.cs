@@ -478,6 +478,84 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
+        /// Returns signed differences for comparable base properties against an equipped item.
+        /// Durability and requirements are excluded because they describe item state and
+        /// eligibility rather than equipment benefits.
+        /// </summary>
+        public virtual string InspectBaseDifferences(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            if (reference == null)
+                return "";
+
+            var text = "";
+
+            void Add(string label, int candidate, int equipped)
+            {
+                var difference = candidate - equipped;
+
+                if (difference == 0)
+                    return;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+                text += $"{label}: {signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)}";
+            }
+
+            if (IsArmor() && reference.IsArmor())
+                Add(
+                    "Defense difference",
+                    GetArmor().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetArmor().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+            else if (IsShield() && reference.IsShield())
+            {
+                Add(
+                    "Defense difference",
+                    GetShield().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetShield().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+                Add(
+                    "Block chance difference",
+                    Mathf.RoundToInt(GetEffectiveChanceToBlock() * 100),
+                    Mathf.RoundToInt(reference.GetEffectiveChanceToBlock() * 100)
+                );
+            }
+            else if (IsWeapon() && reference.IsWeapon())
+            {
+                var rarity = GetRarity();
+                var referenceRarity = reference.GetRarity();
+                var damageBonus = rarity != null ? rarity.bonusDamage : 0;
+                var referenceDamageBonus =
+                    referenceRarity != null ? referenceRarity.bonusDamage : 0;
+                Add(
+                    "Minimum damage difference",
+                    GetWeapon().minDamage + damageBonus,
+                    reference.GetWeapon().minDamage + referenceDamageBonus
+                );
+                Add(
+                    "Maximum damage difference",
+                    GetWeapon().maxDamage + damageBonus,
+                    reference.GetWeapon().maxDamage + referenceDamageBonus
+                );
+                Add(
+                    "Attack speed difference",
+                    GetEffectiveAttackSpeed(),
+                    reference.GetEffectiveAttackSpeed()
+                );
+            }
+
+            return text;
+        }
+
+        /// <summary>
         /// Returns the selling price of this Item Instance.
         /// </summary>
         public virtual int GetSellPrice() => (int)(GetPrice() / 2f);
@@ -718,6 +796,77 @@ namespace PLAYERTWO.ARPGProject
             }
 
             return text;
+        }
+
+        /// <summary>
+        /// Compares socket capacity and the resolved bonuses from socketed gems against the
+        /// equipped reference. Gem bonuses are compared separately from intrinsic affixes so
+        /// they remain attributable to the sockets section of the tooltip.
+        /// </summary>
+        public virtual string InspectSocketDifferences(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            if (reference == null)
+                return "";
+
+            var candidateSlots = sockets?.Length ?? 0;
+            var referenceSlots = reference.sockets?.Length ?? 0;
+            var candidateFilled = CountFilledSockets();
+            var referenceFilled = reference.CountFilledSockets();
+            var text = "";
+
+            void AddCount(string label, int difference)
+            {
+                if (difference == 0)
+                    return;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+                text += $"{label}: {signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)}";
+            }
+
+            AddCount("Socket slots difference", candidateSlots - referenceSlots);
+            AddCount("Socketed gems difference", candidateFilled - referenceFilled);
+
+            var gemDifferences = GetSocketsAttributes()
+                .InspectComparison(
+                    reference.GetSocketsAttributes(),
+                    null,
+                    null,
+                    favorableColor,
+                    unfavorableColor
+                );
+
+            if (!string.IsNullOrEmpty(gemDifferences))
+            {
+                if (text.Length > 0)
+                    text += "\n";
+
+                text += gemDifferences;
+            }
+
+            return text;
+        }
+
+        protected virtual int CountFilledSockets()
+        {
+            if (sockets == null)
+                return 0;
+
+            var count = 0;
+
+            foreach (var socket in sockets)
+            {
+                if (socket != null)
+                    count++;
+            }
+
+            return count;
         }
 
         /// <summary>
