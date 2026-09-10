@@ -75,12 +75,6 @@ namespace PLAYERTWO.ARPGProject
         [Tooltip("The color of an empty socket's text.")]
         public Color emptySocketColor = GameColors.HalfBack;
 
-        [Tooltip("The color used for favorable comparison differences.")]
-        public Color favorableComparisonColor = new(0.25f, 1f, 0.35f, 1f);
-
-        [Tooltip("The color used for unfavorable comparison differences and lost properties.")]
-        public Color unfavorableComparisonColor = new(1f, 0.3f, 0.25f, 1f);
-
         [Header("Comparison Settings")]
         [Tooltip(
             "The paired inspector shown alongside this one when the inspected item has an "
@@ -123,7 +117,6 @@ namespace PLAYERTWO.ARPGProject
         protected InputAction m_defaultComparisonToggleAction;
         protected bool m_comparisonActionAutoEnabled;
         protected bool m_showComparison;
-        protected ItemInstance m_comparisonReference;
 
         /// <summary>
         /// Returns the player Entity. Resolved lazily rather than cached in Start, since a
@@ -237,8 +230,6 @@ namespace PLAYERTWO.ARPGProject
             if (m_item != null)
                 m_item.onChanged -= updateAllHandler;
 
-            SetComparisonReference(null);
-
             gameObject.SetActive(false);
 
             if (comparisonInspector != null)
@@ -259,7 +250,6 @@ namespace PLAYERTWO.ARPGProject
 
             if (!m_showComparison)
             {
-                SetComparisonReference(null);
                 comparisonInspector.Hide();
 
                 if (secondaryComparisonInspector != null)
@@ -269,7 +259,6 @@ namespace PLAYERTWO.ARPGProject
             }
 
             var counterpart = m_item.GetEquippedCounterpart(entity.items);
-            SetComparisonReference(counterpart);
 
             if (counterpart != null)
             {
@@ -399,27 +388,6 @@ namespace PLAYERTWO.ARPGProject
             UpdateInstruction();
         }
 
-        protected virtual void SetComparisonReference(ItemInstance reference)
-        {
-            if (m_comparisonReference == reference)
-                return;
-
-            if (m_comparisonReference != null)
-                m_comparisonReference.onChanged -= updateAllHandler;
-
-            m_comparisonReference = reference;
-
-            if (m_comparisonReference != null)
-                m_comparisonReference.onChanged += updateAllHandler;
-
-            if (m_item != null && gameObject.activeSelf)
-            {
-                UpdateAttributes();
-                UpdateAdditionalAttributes();
-                UpdateSockets();
-            }
-        }
-
         protected virtual void UpdateEquippedIndicator()
         {
             if (equippedIndicator == null)
@@ -456,23 +424,12 @@ namespace PLAYERTWO.ARPGProject
             attributesContainer.SetActive(m_item.IsEquippable() || m_item.IsSkill());
 
             if (attributesContainer.activeSelf)
-            {
                 attributesText.text = m_item.Inspect(
                     entity.stats,
                     attentionColor,
                     invalidColor,
                     specialColor
                 );
-
-                var differences = m_item.InspectBaseDifferences(
-                    m_comparisonReference,
-                    favorableComparisonColor,
-                    unfavorableComparisonColor
-                );
-
-                if (!string.IsNullOrEmpty(differences))
-                    attributesText.text += "\n\nComparison\n" + differences;
-            }
         }
 
         protected virtual void UpdatePotionDescription()
@@ -501,20 +458,7 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void UpdateAdditionalAttributes()
         {
             var socketsAttributes = m_item.GetSocketsAttributes();
-            var referenceSocketsAttributes = m_comparisonReference?.GetSocketsAttributes();
-            var candidateAttributes = m_item.attributes ?? new ItemAttributes();
-            var referenceAttributes =
-                m_comparisonReference != null
-                    ? m_comparisonReference.attributes ?? new ItemAttributes()
-                    : null;
-            var text =
-                candidateAttributes.InspectComparison(
-                    referenceAttributes,
-                    socketsAttributes,
-                    referenceSocketsAttributes,
-                    favorableComparisonColor,
-                    unfavorableComparisonColor
-                );
+            var text = m_item.attributes?.InspectExcluding(socketsAttributes);
 
             if (text == null || text.Length == 0)
             {
@@ -529,25 +473,11 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void UpdateSockets()
         {
             var hasSockets = m_item.sockets != null && m_item.sockets.Length > 0;
-            var referenceHasSockets =
-                m_comparisonReference?.sockets != null
-                && m_comparisonReference.sockets.Length > 0;
 
-            socketsContainer.SetActive(hasSockets || referenceHasSockets);
+            socketsContainer.SetActive(hasSockets);
 
-            if (!socketsContainer.activeSelf)
-                return;
-
-            socketsText.text = hasSockets ? m_item.InspectSockets(emptySocketColor) : "No sockets";
-
-            var differences = m_item.InspectSocketDifferences(
-                m_comparisonReference,
-                favorableComparisonColor,
-                unfavorableComparisonColor
-            );
-
-            if (!string.IsNullOrEmpty(differences))
-                socketsText.text += "\n\nSocket comparison\n" + differences;
+            if (hasSockets)
+                socketsText.text = m_item.InspectSockets(emptySocketColor);
         }
 
         protected virtual void UpdateSocketableModifiers()
