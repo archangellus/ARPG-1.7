@@ -31,9 +31,27 @@ namespace PLAYERTWO.ARPGProject
         )]
         public GameObject equippedIndicator;
 
+        [Header("Images")]
+        [Tooltip(
+            "References the UI Image displaying the inspected item's inventory sprite. "
+                + "Hidden when the item has no image."
+        )]
+        public Image hoveredItemImage;
+
+        [Header("Price Labels")]
+        [Tooltip("References the Buy Value label shown only when buying from the merchant.")]
+        public GameObject buyValue;
+
+        [Tooltip("References the Sell Value label shown when not buying, including when the merchant is closed.")]
+        public GameObject sellValue;
+
         [Header("Texts")]
-        [Tooltip("A reference to the Text component that represents the Item's price.")]
-        public Text itemPriceText;
+        [FormerlySerializedAs("itemPriceText")]
+        [Tooltip("References the Text component displaying the buy price. Only shown when buying.")]
+        public Text buyValueText;
+
+        [Tooltip("References the Text component displaying the sell price when not buying, including when the merchant is closed.")]
+        public Text sellValueText;
 
         [Tooltip("A reference to the Text component that represents the Item's name.")]
         public Text itemName;
@@ -47,7 +65,13 @@ namespace PLAYERTWO.ARPGProject
         public Text attributesText;
 
         [Tooltip(
-            "Optional Text component displaying Item Power. Assign a separate Text component "
+            "References the Text component displaying all item requirements. "
+                + "Hidden when there are no requirements to display."
+        )]
+        public Text requirementsText;
+
+        [Tooltip(
+            "Optional Text component displaying Item Power only when greater than 1. Assign a separate Text component "
                 + "to style this line independently; when omitted, it remains in "
                 + "attributesText for backwards compatibility."
         )]
@@ -101,6 +125,13 @@ namespace PLAYERTWO.ARPGProject
 
         [Tooltip("The color used for unfavorable comparison differences and lost properties.")]
         public Color unfavorableComparisonColor = new(1f, 0.3f, 0.25f, 1f);
+
+        [Header("Requirements Colors")]
+        [Tooltip("The color used for requirements that the player meets.")]
+        public Color requirementsStandardColor = new(1, 1, 1, 1);
+
+        [Tooltip("The color used for requirements that the player does not meet.")]
+        public Color requirementsErrorColor = new(1, 0, 0, 1);
 
         [Header("Comparison Settings")]
         [Tooltip("Heading displayed above base-property differences.")]
@@ -202,6 +233,12 @@ namespace PLAYERTWO.ARPGProject
                 comparisonAction.Disable();
 
             m_comparisonActionAutoEnabled = false;
+
+            if (hoveredItemImage != null)
+            {
+                hoveredItemImage.sprite = null;
+                hoveredItemImage.gameObject.SetActive(false);
+            }
         }
 
         protected virtual void OnDestroy()
@@ -413,10 +450,12 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void UpdateAll()
         {
             UpdateEquippedIndicator();
+            UpdateHoveredItemImage();
             UpdatePriceText();
             UpdateItemName();
             UpdatePotionDescription();
             UpdateAttributes();
+            UpdateRequirementsText();
             UpdateAdditionalAttributes();
             UpdateSockets();
             UpdateSocketableModifiers();
@@ -454,15 +493,49 @@ namespace PLAYERTWO.ARPGProject
 
         protected virtual void UpdatePriceText()
         {
-            itemPriceText.gameObject.SetActive(GUIWindowsManager.instance.merchantWindow.isOpen);
+            var windows = GUIWindowsManager.instance;
+            var showBuyValue =
+                m_item != null
+                && m_onMerchant
+                && windows != null
+                && windows.merchantWindow != null
+                && windows.merchantWindow.isOpen;
+            var showSellValue = m_item != null && !showBuyValue;
 
-            if (itemPriceText.gameObject.activeSelf)
+            if (buyValue != null)
+                buyValue.SetActive(showBuyValue);
+
+            if (sellValue != null)
+                sellValue.SetActive(showSellValue);
+
+            if (buyValueText != null)
             {
-                var buying = m_onMerchant;
-                var price = buying ? m_item.GetPrice() : m_item.GetSellPrice();
-                var prefix = buying ? "Buy" : "Sell";
-                itemPriceText.text = $"{prefix}:  {price.ToMoneyString()}";
+                buyValueText.gameObject.SetActive(showBuyValue);
+
+                if (showBuyValue)
+                    buyValueText.text = m_item.GetPrice().ToMoneyString();
             }
+
+            if (sellValueText != null)
+            {
+                sellValueText.gameObject.SetActive(showSellValue);
+
+                if (showSellValue)
+                    sellValueText.text = m_item.GetSellPrice().ToMoneyString();
+            }
+        }
+
+        protected virtual void UpdateHoveredItemImage()
+        {
+            if (hoveredItemImage == null)
+                return;
+
+            var sprite = m_item != null && m_item.data != null ? m_item.data.image : null;
+
+            hoveredItemImage.sprite = sprite;
+            hoveredItemImage.preserveAspect = true;
+            hoveredItemImage.raycastTarget = false;
+            hoveredItemImage.gameObject.SetActive(sprite != null);
         }
 
         protected virtual void UpdateItemName()
@@ -475,17 +548,34 @@ namespace PLAYERTWO.ARPGProject
                 itemName.color = m_item.GetRarityColor(regularColor);
         }
 
+        protected virtual void UpdateRequirementsText()
+        {
+            if (requirementsText == null)
+                return;
+
+            requirementsText.color = requirementsStandardColor;
+            requirementsText.supportRichText = true;
+
+            SetTextActive(
+                requirementsText,
+                m_item.InspectRequirements(entity.stats, requirementsErrorColor)
+            );
+        }
+
         protected virtual void UpdateAttributes()
         {
             attributesContainer.SetActive(true);
 
             if (attributesContainer.activeSelf)
             {
-                var power = m_item.InspectItemPower(
-                    m_comparisonReference,
-                    favorableComparisonColor,
-                    unfavorableComparisonColor
-                );
+                var power =
+                    m_item.GetItemPower() <= 1
+                        ? string.Empty
+                        : m_item.InspectItemPower(
+                            m_comparisonReference,
+                            favorableComparisonColor,
+                            unfavorableComparisonColor
+                        );
                 var armor = m_item.InspectArmor(
                     m_comparisonReference,
                     favorableComparisonColor,
@@ -495,7 +585,8 @@ namespace PLAYERTWO.ARPGProject
                     entity.stats,
                     attentionColor,
                     invalidColor,
-                    specialColor
+                    specialColor,
+                    includeRequirements: false
                 );
 
                 attributesText.text = string.Empty;
@@ -542,6 +633,10 @@ namespace PLAYERTWO.ARPGProject
 
                     attributesText.text += comparison;
                 }
+
+                attributesText.gameObject.SetActive(
+                    !string.IsNullOrWhiteSpace(attributesText.text)
+                );
             }
         }
 

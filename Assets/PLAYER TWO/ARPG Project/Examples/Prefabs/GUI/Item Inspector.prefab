@@ -1486,6 +1486,9 @@ MonoBehaviour:
   itemName: {fileID: 1418017015576728184}
   potionDescription: {fileID: 9089525403866158400}
   attributesText: {fileID: 8839721168268275569}
+  itemPowerText: {fileID: 0}
+  armorText: {fileID: 0}
+  baseComparisonText: {fileID: 0}
   additionalAttributesText: {fileID: 3206326763559998136}
   socketsText: {fileID: 7459627028127766904}
   socketableModifiersText: {fileID: 6745521528207818494}
@@ -1494,10 +1497,15 @@ MonoBehaviour:
   invalidColor: {r: 1, g: 0, b: 0, a: 1}
   attentionColor: {r: 1, g: 1, b: 0, a: 1}
   specialColor: {r: 0.5, g: 0.5, b: 1, a: 1}
+  emptySocketColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  favorableComparisonColor: {r: 0.25, g: 1, b: 0.35, a: 1}
+  unfavorableComparisonColor: {r: 1, g: 0.3, b: 0.25, a: 1}
+  baseComparisonHeading: Comparison
   comparisonInspector: {fileID: 0}
   secondaryComparisonInspector: {fileID: 0}
   independentPositioning: 1
   comparisonInspectorMargin: 2
+  comparisonToggleAction: {fileID: 0}
 --- !u!222 &5573557391781945760
 CanvasRenderer:
   m_ObjectHideFlags: 0

@@ -825,6 +825,52 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
+        /// Returns all requirement lines, highlighting unmet requirements with the error color.
+        /// </summary>
+        public virtual string InspectRequirements(EntityStatsManager stats, Color error)
+        {
+            var text = "";
+
+            if (GetRequiredLevel() > 1)
+                text += InspectRequired(
+                    "Level",
+                    GetRequiredLevel(),
+                    stats.level,
+                    error,
+                    text.Length > 0
+                );
+
+            if (GetRequiredStrength() > 0)
+                text += InspectRequired(
+                    "Strength",
+                    GetRequiredStrength(),
+                    stats.strength,
+                    error,
+                    text.Length > 0
+                );
+
+            if (GetRequiredDexterity() > 0)
+                text += InspectRequired(
+                    "Dexterity",
+                    GetRequiredDexterity(),
+                    stats.dexterity,
+                    error,
+                    text.Length > 0
+                );
+
+            if (GetRequiredEnergy() > 0)
+                text += InspectRequired(
+                    "Energy",
+                    GetRequiredEnergy(),
+                    stats.energy,
+                    error,
+                    text.Length > 0
+                );
+
+            return text;
+        }
+
+        /// <summary>
         /// Returns a string with the Item's general attributes.
         /// </summary>
         /// <param name="stats">The Entity Stats to compare against.</param>
@@ -836,6 +882,20 @@ namespace PLAYERTWO.ARPGProject
             Color warning,
             Color error,
             Color special
+        )
+        {
+            return Inspect(stats, warning, error, special, true);
+        }
+
+        /// <summary>
+        /// Returns the Item's general attributes, optionally including its requirements.
+        /// </summary>
+        public virtual string Inspect(
+            EntityStatsManager stats,
+            Color warning,
+            Color error,
+            Color special,
+            bool includeRequirements
         )
         {
             var text = "";
@@ -902,41 +962,18 @@ namespace PLAYERTWO.ARPGProject
                     text += lineBreak + $"Durability: {durabilityValues}";
             }
 
-            if (GetRequiredLevel() > 1)
-                text += InspectRequired(
-                    "Level",
-                    GetRequiredLevel(),
-                    stats.level,
-                    error,
-                    text.Length > 0
-                );
+            if (includeRequirements)
+            {
+                var requirements = InspectRequirements(stats, error);
 
-            if (GetRequiredStrength() > 0)
-                text += InspectRequired(
-                    "Strength",
-                    GetRequiredStrength(),
-                    stats.strength,
-                    error,
-                    text.Length > 0
-                );
+                if (!string.IsNullOrEmpty(requirements))
+                {
+                    if (text.Length > 0)
+                        text += "\n";
 
-            if (GetRequiredDexterity() > 0)
-                text += InspectRequired(
-                    "Dexterity",
-                    GetRequiredDexterity(),
-                    stats.dexterity,
-                    error,
-                    text.Length > 0
-                );
-
-            if (GetRequiredEnergy() > 0)
-                text += InspectRequired(
-                    "Energy",
-                    GetRequiredEnergy(),
-                    stats.energy,
-                    error,
-                    text.Length > 0
-                );
+                    text += requirements;
+                }
+            }
 
             return text;
         }
