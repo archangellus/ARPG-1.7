@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
@@ -37,6 +38,12 @@ namespace PLAYERTWO.ARPGProject
                 + "Hidden when the item has no image."
         )]
         public Image hoveredItemImage;
+
+        [Tooltip("The image shown for each empty socket slot.")]
+        public Sprite emptySocketSprite;
+
+        [Tooltip("The width and height of each empty socket image.")]
+        public float emptySocketImageSize = 24f;
 
         [Header("Price Labels")]
         [Tooltip("References the Buy Value label shown only when buying from the merchant.")]
@@ -178,6 +185,9 @@ namespace PLAYERTWO.ARPGProject
         protected InputAction m_defaultComparisonToggleAction;
         protected bool m_comparisonActionAutoEnabled;
         protected bool m_showComparison;
+        protected Text m_socketsHeading;
+        protected RectTransform m_emptySocketsContainer;
+        protected readonly List<GameObject> m_emptySocketImages = new();
         protected ItemInstance m_comparisonReference;
 
         /// <summary>
@@ -724,6 +734,9 @@ namespace PLAYERTWO.ARPGProject
             if (!socketsContainer.activeSelf)
                 return;
 
+            UpdateSocketsHeading(m_item.sockets?.Length ?? 0);
+            UpdateEmptySocketImages();
+
             socketsText.text = hasSockets ? m_item.InspectSockets(emptySocketColor) : "No sockets";
 
             var differences = m_item.InspectSocketDifferences(
@@ -733,7 +746,95 @@ namespace PLAYERTWO.ARPGProject
             );
 
             if (!string.IsNullOrEmpty(differences))
-                socketsText.text += "\n\nSocket comparison\n" + differences;
+                socketsText.text += (socketsText.text.Length > 0 ? "\n\n" : "") + differences;
+        }
+
+        protected virtual void UpdateSocketsHeading(int totalSlots)
+        {
+            if (m_socketsHeading == null)
+            {
+                foreach (var label in socketsContainer.GetComponentsInChildren<Text>(true))
+                {
+                    if (label != socketsText && label.text.StartsWith("Socket Slots"))
+                    {
+                        m_socketsHeading = label;
+                        break;
+                    }
+                }
+            }
+
+            if (m_socketsHeading != null)
+                m_socketsHeading.text = $"Socket Slots: {totalSlots}";
+        }
+
+        protected virtual void UpdateEmptySocketImages()
+        {
+            if (emptySocketSprite == null || m_item.sockets == null)
+            {
+                if (m_emptySocketsContainer != null)
+                    m_emptySocketsContainer.gameObject.SetActive(false);
+
+                return;
+            }
+
+            if (m_emptySocketsContainer == null)
+            {
+                var container = new GameObject("Empty Socket Images", typeof(RectTransform));
+                m_emptySocketsContainer = container.GetComponent<RectTransform>();
+                m_emptySocketsContainer.SetParent(socketsContainer.transform, false);
+                m_emptySocketsContainer.SetSiblingIndex(socketsText.transform.GetSiblingIndex());
+
+                var layout = container.AddComponent<HorizontalLayoutGroup>();
+                layout.childAlignment = TextAnchor.MiddleLeft;
+                layout.childControlWidth = false;
+                layout.childControlHeight = false;
+                layout.childForceExpandWidth = false;
+                layout.childForceExpandHeight = false;
+                layout.spacing = 4f;
+
+                var fitter = container.AddComponent<ContentSizeFitter>();
+                fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            }
+
+            var emptySocketCount = 0;
+
+            foreach (var socket in m_item.sockets)
+            {
+                if (socket != null)
+                    continue;
+
+                GameObject imageObject;
+
+                if (emptySocketCount < m_emptySocketImages.Count)
+                {
+                    imageObject = m_emptySocketImages[emptySocketCount];
+                    imageObject.SetActive(true);
+                }
+                else
+                {
+                    imageObject = new GameObject(
+                        "Empty Socket",
+                        typeof(RectTransform),
+                        typeof(Image)
+                    );
+                    imageObject.transform.SetParent(m_emptySocketsContainer, false);
+                    m_emptySocketImages.Add(imageObject);
+                }
+
+                var image = imageObject.GetComponent<Image>();
+                image.sprite = emptySocketSprite;
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                image.color = emptySocketColor;
+                imageObject.GetComponent<RectTransform>().sizeDelta =
+                    new Vector2(emptySocketImageSize, emptySocketImageSize);
+                emptySocketCount++;
+            }
+
+            for (var i = emptySocketCount; i < m_emptySocketImages.Count; i++)
+                m_emptySocketImages[i].SetActive(false);
+
+            m_emptySocketsContainer.gameObject.SetActive(emptySocketCount > 0);
         }
 
         protected virtual void UpdateSocketableModifiers()

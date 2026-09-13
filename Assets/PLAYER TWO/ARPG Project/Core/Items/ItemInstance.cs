@@ -979,12 +979,14 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
-        /// Returns a formatted description of this item's socket slots: the attribute bonuses
-        /// granted by every filled socket, merged into a single flat list (formatted the same
-        /// way as <see cref="ItemAttributes.Inspect"/>, without naming which Socketable grants
-        /// each one), and "Empty Socket" for each empty slot.
+        /// Returns a formatted description of the attribute bonuses granted by every filled
+        /// socket, merged into a single flat list (formatted the same way as
+        /// <see cref="ItemAttributes.Inspect"/>, without naming which Socketable grants each
+        /// one). Empty slots are represented by images in the item inspector.
         /// </summary>
-        /// <param name="emptySocketColor">The color used for the "Empty Socket" text.</param>
+        /// <param name="emptySocketColor">
+        /// Retained for API compatibility. Empty sockets are now rendered as images.
+        /// </param>
         public virtual string InspectSockets(Color emptySocketColor)
         {
             if (sockets == null || sockets.Length == 0)
@@ -992,18 +994,22 @@ namespace PLAYERTWO.ARPGProject
 
             var text = "";
             var itemScope = GetItemScope();
-            var emptySocketText = "Empty Socket Slot".WithColor(emptySocketColor);
 
             foreach (var socket in sockets)
             {
-                if (text.Length > 0)
-                    text += "\n";
 
                 var bonusText =
                     socket != null
                         ? ItemAttributes.InspectSocket(socket.GetSocketable(), itemScope)
                         : "";
-                text += !string.IsNullOrEmpty(bonusText) ? bonusText : emptySocketText;
+
+                if (string.IsNullOrEmpty(bonusText))
+                    continue;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                text += bonusText;
             }
 
             return text;
