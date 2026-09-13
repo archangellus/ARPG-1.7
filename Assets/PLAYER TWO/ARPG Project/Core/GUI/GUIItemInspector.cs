@@ -46,20 +46,6 @@ namespace PLAYERTWO.ARPGProject
         [Tooltip("References the Text component displaying the Item's general attributes.")]
         public Text attributesText;
 
-        [Tooltip(
-            "Optional Text component displaying Item Power and Armor. Assign a separate Text "
-                + "component to style this block independently; when omitted, it remains in "
-                + "attributesText for backwards compatibility."
-        )]
-        public Text itemPowerText;
-
-        [Tooltip(
-            "Optional Text component displaying the base-property comparison block. Assign a "
-                + "separate Text component to style this block independently; when omitted, it "
-                + "remains in attributesText for backwards compatibility."
-        )]
-        public Text baseComparisonText;
-
         [Tooltip("References the Text component displaying the Item's additional attributes.")]
         public Text additionalAttributesText;
 
@@ -96,9 +82,6 @@ namespace PLAYERTWO.ARPGProject
         public Color unfavorableComparisonColor = new(1f, 0.3f, 0.25f, 1f);
 
         [Header("Comparison Settings")]
-        [Tooltip("Heading displayed above base-property differences.")]
-        public string baseComparisonHeading = "Comparison";
-
         [Tooltip(
             "The paired inspector shown alongside this one when the inspected item has an "
                 + "equipped counterpart. Only assigned on the primary inspector."
@@ -474,7 +457,7 @@ namespace PLAYERTWO.ARPGProject
 
             if (attributesContainer.activeSelf)
             {
-                var power = m_item.InspectPower(
+                attributesText.text = m_item.InspectPower(
                     m_comparisonReference,
                     favorableComparisonColor,
                     unfavorableComparisonColor
@@ -486,50 +469,18 @@ namespace PLAYERTWO.ARPGProject
                     specialColor
                 );
 
-                attributesText.text = ordinaryAttributes;
-
-                if (itemPowerText != null)
-                {
-                    SetTextActive(itemPowerText, power);
-                }
-                else
-                {
-                    attributesText.text = power;
-
-                    if (!string.IsNullOrEmpty(ordinaryAttributes))
-                        attributesText.text += "\n" + ordinaryAttributes;
-                }
+                if (!string.IsNullOrEmpty(ordinaryAttributes))
+                    attributesText.text += "\n" + ordinaryAttributes;
 
                 var differences = m_item.InspectBaseDifferences(
                     m_comparisonReference,
                     favorableComparisonColor,
                     unfavorableComparisonColor
                 );
-                var comparison = string.IsNullOrEmpty(differences)
-                    ? string.Empty
-                    : string.IsNullOrEmpty(baseComparisonHeading)
-                        ? differences
-                        : baseComparisonHeading + "\n" + differences;
 
-                if (baseComparisonText != null)
-                {
-                    SetTextActive(baseComparisonText, comparison);
-                }
-                else if (!string.IsNullOrEmpty(comparison))
-                {
-                    attributesText.text += "\n\n" + comparison;
-                }
+                if (!string.IsNullOrEmpty(differences))
+                    attributesText.text += "\n\nComparison\n" + differences;
             }
-        }
-
-        /// <summary>
-        /// Updates an optional text block and hides it when it has no content, allowing layouts
-        /// to collapse comparison-only fields when no equipped reference is being inspected.
-        /// </summary>
-        protected virtual void SetTextActive(Text element, string value)
-        {
-            element.text = value;
-            element.gameObject.SetActive(!string.IsNullOrEmpty(value));
         }
 
         protected virtual void UpdatePotionDescription()
