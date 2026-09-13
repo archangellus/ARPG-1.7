@@ -571,41 +571,60 @@ namespace PLAYERTWO.ARPGProject
             Color unfavorableColor
         )
         {
+            var power = InspectItemPower(reference, favorableColor, unfavorableColor);
+            var armor = InspectArmor(reference, favorableColor, unfavorableColor);
+            return string.IsNullOrEmpty(armor) ? power : power + "\n" + armor;
+        }
+
+        /// <summary>
+        /// Formats only the Item Power line with its signed comparison annotation.
+        /// </summary>
+        public virtual string InspectItemPower(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
             var text = $"Item Power {GetItemPower()}";
+
+            return reference == null
+                ? text
+                : AppendPowerDifference(
+                    text,
+                    GetItemPower() - reference.GetItemPower(),
+                    favorableColor,
+                    unfavorableColor,
+                    0
+                );
+        }
+
+        /// <summary>
+        /// Formats only the Armor line with its signed comparison annotation, or returns an
+        /// empty string when neither item has Armor to compare.
+        /// </summary>
+        public virtual string InspectArmor(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
             var armor = GetArmorValue();
+            var referenceArmor = reference != null ? reference.GetArmorValue() : 0;
 
-            if (armor > 0)
-                text += $"\n+{armor} Armor";
+            if (armor <= 0 && referenceArmor <= 0)
+                return string.Empty;
 
-            if (reference == null)
-                return text;
+            var text = $"+{armor} Armor";
 
-            text = AppendPowerDifference(
-                text,
-                GetItemPower() - reference.GetItemPower(),
-                favorableColor,
-                unfavorableColor,
-                0
-            );
-
-            var referenceArmor = reference.GetArmorValue();
-
-            if (armor > 0 || referenceArmor > 0)
-            {
-                if (armor <= 0)
-                    text += "\n+0 Armor";
-
-                text = AppendPowerDifference(
+            return reference == null
+                ? text
+                : AppendPowerDifference(
                     text,
                     armor - referenceArmor,
                     favorableColor,
                     unfavorableColor,
-                    text.LastIndexOf("Armor", System.StringComparison.Ordinal)
-                        + "Armor".Length
+                    text.Length
                 );
-            }
-
-            return text;
         }
 
         static string AppendPowerDifference(

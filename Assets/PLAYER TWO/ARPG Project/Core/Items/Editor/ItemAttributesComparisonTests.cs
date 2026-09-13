@@ -139,6 +139,14 @@ namespace PLAYERTWO.ARPGProject.Tests
             StringAssert.Contains("+120 Armor", text);
             StringAssert.Contains("+20", text);
 
+            var armorText = candidate.InspectArmor(reference, Favorable, Unfavorable);
+            Assert.IsFalse(armorText.Contains("Item Power"));
+            StringAssert.StartsWith("+120 Armor", armorText);
+
+            var powerText = candidate.InspectItemPower(reference, Favorable, Unfavorable);
+            Assert.IsFalse(powerText.Contains("Armor"));
+            StringAssert.StartsWith("Item Power 121", powerText);
+
             Object.DestroyImmediate(candidateData);
             Object.DestroyImmediate(referenceData);
         }
