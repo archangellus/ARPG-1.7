@@ -46,6 +46,27 @@ namespace PLAYERTWO.ARPGProject
         [Tooltip("References the Text component displaying the Item's general attributes.")]
         public Text attributesText;
 
+        [Tooltip(
+            "Optional Text component displaying Item Power. Assign a separate Text component "
+                + "to style this line independently; when omitted, it remains in "
+                + "attributesText for backwards compatibility."
+        )]
+        public Text itemPowerText;
+
+        [Tooltip(
+            "Optional Text component displaying Armor. Assign a separate Text component to "
+                + "style this line independently; when omitted, it remains in attributesText "
+                + "for backwards compatibility."
+        )]
+        public Text armorText;
+
+        [Tooltip(
+            "Optional Text component displaying the base-property comparison block. Assign a "
+                + "separate Text component to style this block independently; when omitted, it "
+                + "remains in attributesText for backwards compatibility."
+        )]
+        public Text baseComparisonText;
+
         [Tooltip("References the Text component displaying the Item's additional attributes.")]
         public Text additionalAttributesText;
 
@@ -82,6 +103,9 @@ namespace PLAYERTWO.ARPGProject
         public Color unfavorableComparisonColor = new(1f, 0.3f, 0.25f, 1f);
 
         [Header("Comparison Settings")]
+        [Tooltip("Heading displayed above base-property differences.")]
+        public string baseComparisonHeading = "Comparison";
+
         [Tooltip(
             "The paired inspector shown alongside this one when the inspected item has an "
                 + "equipped counterpart. Only assigned on the primary inspector."
@@ -457,7 +481,12 @@ namespace PLAYERTWO.ARPGProject
 
             if (attributesContainer.activeSelf)
             {
-                attributesText.text = m_item.InspectPower(
+                var power = m_item.InspectItemPower(
+                    m_comparisonReference,
+                    favorableComparisonColor,
+                    unfavorableComparisonColor
+                );
+                var armor = m_item.InspectArmor(
                     m_comparisonReference,
                     favorableComparisonColor,
                     unfavorableComparisonColor
@@ -469,18 +498,72 @@ namespace PLAYERTWO.ARPGProject
                     specialColor
                 );
 
-                if (!string.IsNullOrEmpty(ordinaryAttributes))
-                    attributesText.text += "\n" + ordinaryAttributes;
+                attributesText.text = string.Empty;
+
+                if (itemPowerText != null)
+                {
+                    SetTextActive(itemPowerText, power);
+                }
+                else
+                {
+                    attributesText.text = power;
+                }
+
+                if (armorText != null)
+                {
+                    SetTextActive(armorText, armor);
+                }
+                else
+                {
+                    AppendAttributeBlock(armor);
+                }
+
+                AppendAttributeBlock(ordinaryAttributes);
 
                 var differences = m_item.InspectBaseDifferences(
                     m_comparisonReference,
                     favorableComparisonColor,
                     unfavorableComparisonColor
                 );
+                var comparison = string.IsNullOrEmpty(differences)
+                    ? string.Empty
+                    : string.IsNullOrEmpty(baseComparisonHeading)
+                        ? differences
+                        : baseComparisonHeading + "\n" + differences;
 
-                if (!string.IsNullOrEmpty(differences))
-                    attributesText.text += "\n\nComparison\n" + differences;
+                if (baseComparisonText != null)
+                {
+                    SetTextActive(baseComparisonText, comparison);
+                }
+                else if (!string.IsNullOrEmpty(comparison))
+                {
+                    if (!string.IsNullOrEmpty(attributesText.text))
+                        attributesText.text += "\n\n";
+
+                    attributesText.text += comparison;
+                }
             }
+        }
+
+        /// <summary>
+        /// Updates an optional text block and hides it when it has no content, allowing layouts
+        /// to collapse comparison-only fields when no equipped reference is being inspected.
+        /// </summary>
+        protected virtual void SetTextActive(Text element, string value)
+        {
+            element.text = value;
+            element.gameObject.SetActive(!string.IsNullOrEmpty(value));
+        }
+
+        protected virtual void AppendAttributeBlock(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            if (!string.IsNullOrEmpty(attributesText.text))
+                attributesText.text += "\n";
+
+            attributesText.text += value;
         }
 
         protected virtual void UpdatePotionDescription()
