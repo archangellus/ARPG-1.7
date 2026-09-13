@@ -366,27 +366,33 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
-        /// Returns the display name of this Item Instance, incorporating affix naming rules.
-        /// In <see cref="ItemRarity.AffixesMode.Paired"/> mode, a prefix appears before the item name and a
-        /// suffix appears after as "of [name]". In <see cref="ItemRarity.AffixesMode.Layered"/> mode, the
-        /// rarity display name is prepended instead (e.g. "Rare Iron Sword").
+        /// Returns the display name of this Item Instance, incorporating its rarity name,
+        /// assigned prefix/suffix, and socket summary.
         /// </summary>
-        public virtual string GetDisplayName()
+        public virtual string GetDisplayName() => WithSocketSuffix(GetAffixedName());
+
+        /// <summary>
+        /// Returns the generated identity name, including its rarity naming convention and
+        /// assigned prefix/suffix, without presentation details such as socket count.
+        /// </summary>
+        protected virtual string GetAffixedName()
         {
+            if (rarityId < 0)
+                return data.name;
+
             var db = GameDatabase.instance;
 
-            if (rarityId < 0 || !db.itemRarities.IsIndexValid(rarityId))
-                return WithSocketSuffix(data.name);
+            if (!db.itemRarities.IsIndexValid(rarityId))
+                return data.name;
 
             var rarity = db.itemRarities[rarityId];
-
-            if (rarity.affixesMode == ItemRarity.AffixesMode.Layered)
-                return WithSocketSuffix($"{rarity.displayName} {data.name}");
-
             var affixes = rarity.affixes;
+            var rarityName = string.IsNullOrWhiteSpace(rarity.displayName)
+                ? ""
+                : $"{rarity.displayName} ";
 
             if (affixes == null)
-                return WithSocketSuffix(data.name);
+                return $"{rarityName}{data.name}".Trim();
 
             var prefix =
                 prefixIndices?.Count > 0 && affixes.prefixes.IsIndexValid(prefixIndices[0])
@@ -397,8 +403,15 @@ namespace PLAYERTWO.ARPGProject
                     ? $" {affixes.suffixes[suffixIndices[0]].name}"
                     : "";
 
-            return WithSocketSuffix($"{prefix}{data.name}{suffix}".Trim());
+            return $"{rarityName}{prefix}{data.name}{suffix}".Trim();
         }
+
+        /// <summary>
+        /// Returns the generated item title used by the tooltip. Rarity and assigned affix
+        /// names are part of the item's identity; socket count, Armor, Item Power, and other
+        /// numeric properties are deliberately left to the tooltip detail sections.
+        /// </summary>
+        public virtual string GetTooltipTitle() => data != null ? GetAffixedName() : "";
 
         /// <summary>
         /// Appends a "(N sockets)" suffix to the given name when this item has socket slots,
@@ -475,6 +488,226 @@ namespace PLAYERTWO.ARPGProject
             var rarity = GetRarity();
             return (GetShield().chanceToBlock + (rarity != null ? rarity.bonusChanceToBlock : 0))
                 / 100f;
+        }
+
+        /// <summary>
+        /// Returns the item's intrinsic power score. The score is derived from requirements,
+        /// rarity, base combat values, resolved affixes/gem bonuses, and socket capacity, so it
+        /// is stable for a given item revision and available for every item type.
+        /// </summary>
+        public virtual int GetItemPower()
+        {
+            var power = Mathf.Max(1, GetRequiredLevel() * 10);
+            var rarity = GetRarity();
+
+            if (rarity != null)
+                power += Mathf.Max(0, rarity.tier) * 20;
+
+            if (IsWeapon())
+            {
+                var damageBonus = rarity != null ? rarity.bonusDamage : 0;
+                power += Mathf.RoundToInt(
+                    (GetWeapon().minDamage + GetWeapon().maxDamage + damageBonus * 2) / 2f
+                );
+                power += Mathf.Max(0, GetEffectiveAttackSpeed());
+            }
+
+            power += GetArmorValue();
+
+            if (IsShield())
+                power += Mathf.RoundToInt(GetEffectiveChanceToBlock() * 100);
+
+            if (attributes != null)
+            {
+                foreach (var type in ItemAttributes.AllTypes)
+                {
+                    if (
+                        type == ItemAttributes.AttributeType.Defense
+                        || type == ItemAttributes.AttributeType.DefensePercent
+                    )
+                        continue;
+
+                    power += Mathf.Max(0, attributes[type]);
+                }
+            }
+
+            power += (sockets?.Length ?? 0) * 5;
+            return Mathf.Max(1, power);
+        }
+
+        /// <summary>
+        /// Returns the total Armor supplied by this item. Base armor/shield defense, rarity
+        /// defense, flat Defense affixes, and Defense percentage affixes (including socketed
+        /// gems) are resolved into the displayed value. Returns zero for items with no defense.
+        /// </summary>
+        public virtual int GetArmorValue()
+        {
+            var armor = 0;
+            var rarity = GetRarity();
+
+            if (IsArmor())
+                armor += GetArmor().defense + (rarity != null ? rarity.bonusDefense : 0);
+            else if (IsShield())
+                armor += GetShield().defense + (rarity != null ? rarity.bonusDefense : 0);
+
+            if (attributes != null)
+            {
+                armor += attributes[ItemAttributes.AttributeType.Defense];
+                armor = Mathf.RoundToInt(
+                    armor
+                        * (1f + attributes[ItemAttributes.AttributeType.DefensePercent] / 100f)
+                );
+            }
+
+            return Mathf.Max(0, armor);
+        }
+
+        /// <summary>
+        /// Formats Item Power and, where applicable, Armor with signed comparison annotations.
+        /// </summary>
+        public virtual string InspectPower(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            var text = $"Item Power {GetItemPower()}";
+            var armor = GetArmorValue();
+
+            if (armor > 0)
+                text += $"\n+{armor} Armor";
+
+            if (reference == null)
+                return text;
+
+            text = AppendPowerDifference(
+                text,
+                GetItemPower() - reference.GetItemPower(),
+                favorableColor,
+                unfavorableColor,
+                0
+            );
+
+            var referenceArmor = reference.GetArmorValue();
+
+            if (armor > 0 || referenceArmor > 0)
+            {
+                if (armor <= 0)
+                    text += "\n+0 Armor";
+
+                text = AppendPowerDifference(
+                    text,
+                    armor - referenceArmor,
+                    favorableColor,
+                    unfavorableColor,
+                    text.LastIndexOf("Armor", System.StringComparison.Ordinal)
+                        + "Armor".Length
+                );
+            }
+
+            return text;
+        }
+
+        static string AppendPowerDifference(
+            string text,
+            int difference,
+            Color favorableColor,
+            Color unfavorableColor,
+            int insertAfter
+        )
+        {
+            if (difference == 0)
+                return text;
+
+            var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+            var annotation =
+                $" ({signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)})";
+
+            if (insertAfter <= 0)
+            {
+                var lineEnd = text.IndexOf('\n');
+                insertAfter = lineEnd >= 0 ? lineEnd : text.Length;
+            }
+
+            return text.Insert(insertAfter, annotation);
+        }
+
+        /// <summary>
+        /// Returns signed differences for comparable base properties against an equipped item.
+        /// Durability and requirements are excluded because they describe item state and
+        /// eligibility rather than equipment benefits.
+        /// </summary>
+        public virtual string InspectBaseDifferences(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            if (reference == null)
+                return "";
+
+            var text = "";
+
+            void Add(string label, int candidate, int equipped)
+            {
+                var difference = candidate - equipped;
+
+                if (difference == 0)
+                    return;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+                text += $"{label}: {signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)}";
+            }
+
+            if (IsArmor() && reference.IsArmor())
+                Add(
+                    "Defense difference",
+                    GetArmor().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetArmor().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+            else if (IsShield() && reference.IsShield())
+            {
+                Add(
+                    "Defense difference",
+                    GetShield().defense + (GetRarity() != null ? GetRarity().bonusDefense : 0),
+                    reference.GetShield().defense
+                        + (reference.GetRarity() != null ? reference.GetRarity().bonusDefense : 0)
+                );
+                Add(
+                    "Block chance difference",
+                    Mathf.RoundToInt(GetEffectiveChanceToBlock() * 100),
+                    Mathf.RoundToInt(reference.GetEffectiveChanceToBlock() * 100)
+                );
+            }
+            else if (IsWeapon() && reference.IsWeapon())
+            {
+                var rarity = GetRarity();
+                var referenceRarity = reference.GetRarity();
+                var damageBonus = rarity != null ? rarity.bonusDamage : 0;
+                var referenceDamageBonus =
+                    referenceRarity != null ? referenceRarity.bonusDamage : 0;
+                Add(
+                    "Minimum damage difference",
+                    GetWeapon().minDamage + damageBonus,
+                    reference.GetWeapon().minDamage + referenceDamageBonus
+                );
+                Add(
+                    "Maximum damage difference",
+                    GetWeapon().maxDamage + damageBonus,
+                    reference.GetWeapon().maxDamage + referenceDamageBonus
+                );
+                Add(
+                    "Attack speed difference",
+                    GetEffectiveAttackSpeed(),
+                    reference.GetEffectiveAttackSpeed()
+                );
+            }
+
+            return text;
         }
 
         /// <summary>
@@ -718,6 +951,77 @@ namespace PLAYERTWO.ARPGProject
             }
 
             return text;
+        }
+
+        /// <summary>
+        /// Compares socket capacity and the resolved bonuses from socketed gems against the
+        /// equipped reference. Gem bonuses are compared separately from intrinsic affixes so
+        /// they remain attributable to the sockets section of the tooltip.
+        /// </summary>
+        public virtual string InspectSocketDifferences(
+            ItemInstance reference,
+            Color favorableColor,
+            Color unfavorableColor
+        )
+        {
+            if (reference == null)
+                return "";
+
+            var candidateSlots = sockets?.Length ?? 0;
+            var referenceSlots = reference.sockets?.Length ?? 0;
+            var candidateFilled = CountFilledSockets();
+            var referenceFilled = reference.CountFilledSockets();
+            var text = "";
+
+            void AddCount(string label, int difference)
+            {
+                if (difference == 0)
+                    return;
+
+                if (text.Length > 0)
+                    text += "\n";
+
+                var signed = difference > 0 ? $"+{difference}" : difference.ToString();
+                text += $"{label}: {signed.WithColor(difference > 0 ? favorableColor : unfavorableColor)}";
+            }
+
+            AddCount("Socket slots difference", candidateSlots - referenceSlots);
+            AddCount("Socketed gems difference", candidateFilled - referenceFilled);
+
+            var gemDifferences = GetSocketsAttributes()
+                .InspectComparison(
+                    reference.GetSocketsAttributes(),
+                    null,
+                    null,
+                    favorableColor,
+                    unfavorableColor
+                );
+
+            if (!string.IsNullOrEmpty(gemDifferences))
+            {
+                if (text.Length > 0)
+                    text += "\n";
+
+                text += gemDifferences;
+            }
+
+            return text;
+        }
+
+        protected virtual int CountFilledSockets()
+        {
+            if (sockets == null)
+                return 0;
+
+            var count = 0;
+
+            foreach (var socket in sockets)
+            {
+                if (socket != null)
+                    count++;
+            }
+
+            return count;
         }
 
         /// <summary>
