@@ -746,7 +746,7 @@ namespace PLAYERTWO.ARPGProject
             );
 
             if (!string.IsNullOrEmpty(differences))
-                socketsText.text += (socketsText.text.Length > 0 ? "\n\n" : "") + differences;
+                socketsText.text += (socketsText.text.Length > 0 ? "\n\n" : " ") + differences;
         }
 
         protected virtual void UpdateSocketsHeading(int totalSlots)
@@ -755,7 +755,8 @@ namespace PLAYERTWO.ARPGProject
             {
                 foreach (var label in socketsContainer.GetComponentsInChildren<Text>(true))
                 {
-                    if (label != socketsText && label.text.StartsWith("Socket Slots"))
+                    if (label != socketsText && label.text.StartsWith("" +
+                        "Socket Slots"))
                     {
                         m_socketsHeading = label;
                         break;

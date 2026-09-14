@@ -1097,7 +1097,21 @@ namespace PLAYERTWO.ARPGProject
             if (!IsSocketable())
                 return "";
 
-            return ItemAttributes.InspectSocketable(GetSocketable());
+            var text = ItemAttributes.InspectSocketable(GetSocketable());
+
+            if (string.IsNullOrWhiteSpace(text))
+                return "";
+
+            // Remove blank separator lines while preserving text spacing and rich-text tags.
+            var lines = text.Split(
+                new[] { '\r', '\n' },
+                System.StringSplitOptions.RemoveEmptyEntries
+            );
+
+            return string.Join(
+                "\n",
+                System.Array.FindAll(lines, line => !string.IsNullOrWhiteSpace(line))
+            );
         }
 
         protected virtual void SetDefaultData(Item data)
