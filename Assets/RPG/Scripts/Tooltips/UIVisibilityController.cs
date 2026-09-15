@@ -4,6 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// Enables or disables UI targets according to one or more watched windows.
+/// Each target chooses whether it is enabled or disabled when its rule is satisfied.
 /// Attach to a GameObject that remains active while the watched UI is hidden.
 /// Watches GameObject activation and, optionally, CanvasGroup transparency.
 /// This does not test screen position, clipping, occlusion or Graphic color alpha.
@@ -19,6 +20,35 @@ public class UIVisibilityController : MonoBehaviour
         AnyShowing
     }
 
+    public enum SharedTargetMode
+    {
+        AllRulesMustEnable,
+        AnyRuleCanEnable
+    }
+
+    [Serializable]
+    public class GameObjectTarget
+    {
+        [Tooltip("The entire UI GameObject to toggle, including its children.")]
+        public GameObject target;
+
+        [Tooltip("Checked: turn this object on when the rule matches and off otherwise. " +
+                 "Unchecked: turn this object off when the rule matches and on otherwise.")]
+        public bool enableWhenConditionsMet = true;
+    }
+
+    [Serializable]
+    public class ComponentTarget
+    {
+        [Tooltip("The component whose Enabled checkbox will be controlled. " +
+                 "Drag the component header from the Inspector, such as Image or TextMeshProUGUI.")]
+        public Behaviour target;
+
+        [Tooltip("Checked: enable this component when the rule matches and disable it otherwise. " +
+                 "Unchecked: disable this component when the rule matches and enable it otherwise.")]
+        public bool enableWhenConditionsMet = true;
+    }
+
     [Serializable]
     public class VisibilityRule
     {
@@ -26,13 +56,9 @@ public class UIVisibilityController : MonoBehaviour
                  "An empty list always disables the targets.")]
         public List<GameObject> watchedUIs = new List<GameObject>();
 
-        [Tooltip("All Showing: enable targets only while every watched UI is showing. " +
-                 "Any Showing: enable targets while at least one watched UI is showing.")]
+        [Tooltip("All Showing: the condition is met while every watched UI is showing. " +
+                 "Any Showing: the condition is met while at least one watched UI is showing.")]
         public WatchMode watchMode = WatchMode.AllShowing;
-
-        // Keep the original serialized field name to migrate existing Inspector assignments.
-        [SerializeField, HideInInspector]
-        private GameObject watchedUI;
 
         [Tooltip("Also check CanvasGroups on each watched UI and its parents.")]
         public bool checkCanvasGroupAlpha = true;
@@ -41,30 +67,88 @@ public class UIVisibilityController : MonoBehaviour
         [Tooltip("The UI counts as hidden when its combined CanvasGroup alpha is at or below this value.")]
         public float hiddenAlphaThreshold = 0.001f;
 
-        [Tooltip("Entire UI GameObjects to show or hide, including their children.")]
-        public List<GameObject> objectsToToggle = new List<GameObject>();
+        [Tooltip("Each entry has its own Enable When Conditions Met checkbox. " +
+                 "One rule can turn some objects on and other objects off.")]
+        public List<GameObjectTarget> objectTargets = new List<GameObjectTarget>();
 
         [Tooltip("Optional: toggle only a component's Enabled checkbox, such as Image or TextMeshProUGUI. " +
-                 "Drag the component header from the Inspector. Disabling a Button component alone does not hide its image.")]
-        public List<Behaviour> componentsToToggle = new List<Behaviour>();
+                 "Each entry chooses its own state. Disabling a Button component alone does not hide its image.")]
+        public List<ComponentTarget> componentTargets = new List<ComponentTarget>();
 
-        internal void MigrateLegacyWatch()
+        // Keep the original field names and types so existing scene and prefab assignments
+        // can be moved into the new lists without changing their serialized format in place.
+        [SerializeField, HideInInspector]
+        private GameObject watchedUI;
+
+        [SerializeField, HideInInspector]
+        private bool invertResult;
+
+        [SerializeField, HideInInspector]
+        private List<GameObject> objectsToToggle;
+
+        [SerializeField, HideInInspector]
+        private List<Behaviour> componentsToToggle;
+
+        internal void MigrateLegacyData()
         {
-            if (watchedUI == null)
-                return;
+            if (watchedUI != null)
+            {
+                if (watchedUIs == null)
+                    watchedUIs = new List<GameObject>();
 
-            if (watchedUIs == null)
-                watchedUIs = new List<GameObject>();
+                if (!watchedUIs.Contains(watchedUI))
+                    watchedUIs.Insert(0, watchedUI);
 
-            if (!watchedUIs.Contains(watchedUI))
-                watchedUIs.Insert(0, watchedUI);
+                watchedUI = null;
+            }
 
-            watchedUI = null;
+            // A previously inverted rule becomes an unchecked checkbox on each migrated target.
+            if (objectsToToggle != null && objectsToToggle.Count > 0)
+            {
+                if (objectTargets == null)
+                    objectTargets = new List<GameObjectTarget>();
+
+                foreach (GameObject target in objectsToToggle)
+                {
+                    objectTargets.Add(new GameObjectTarget
+                    {
+                        target = target,
+                        enableWhenConditionsMet = !invertResult
+                    });
+                }
+
+                objectsToToggle.Clear();
+            }
+
+            if (componentsToToggle != null && componentsToToggle.Count > 0)
+            {
+                if (componentTargets == null)
+                    componentTargets = new List<ComponentTarget>();
+
+                foreach (Behaviour target in componentsToToggle)
+                {
+                    componentTargets.Add(new ComponentTarget
+                    {
+                        target = target,
+                        enableWhenConditionsMet = !invertResult
+                    });
+                }
+
+                componentsToToggle.Clear();
+            }
+
+            invertResult = false;
         }
     }
 
-    [Tooltip("Each rule applies its Watch Mode to its Watched UIs list. " +
-             "If a target is listed in multiple rules, all those rules must be satisfied to enable it. " +
+    [Tooltip("All Rules Must Enable: a shared target is enabled only when all its rules request it. " +
+             "Any Rule Can Enable: a shared target is enabled when at least one rule requests it, " +
+             "even if other rules request disabling it. This applies only to rules containing that target.")]
+    public SharedTargetMode sharedTargetMode = SharedTargetMode.AllRulesMustEnable;
+
+    [Tooltip("Each rule checks its Watched UIs using Watch Mode. Every target has its own " +
+             "Enable When Conditions Met checkbox, so one rule can turn different targets on and off. " +
+             "When multiple rules control the same target, Shared Target Mode combines their results. " +
              "Keep targets separate from watched windows and this controller.")]
     public List<VisibilityRule> rules = new List<VisibilityRule>();
 
@@ -111,33 +195,42 @@ public class UIVisibilityController : MonoBehaviour
                 if (rule == null)
                     continue;
 
-                bool showing = IsRuleSatisfied(rule);
+                bool hasConditions = rule.watchedUIs != null && rule.watchedUIs.Count > 0;
+                bool conditionMet = IsRuleSatisfied(rule);
 
-                if (rule.objectsToToggle != null)
+                if (rule.objectTargets != null)
                 {
-                    foreach (GameObject target in rule.objectsToToggle)
+                    foreach (GameObjectTarget entry in rule.objectTargets)
                     {
-                        if (target == null)
+                        if (entry == null || entry.target == null)
                             continue;
+
+                        GameObject target = entry.target;
+                        bool shouldEnable = hasConditions &&
+                            (conditionMet == entry.enableWhenConditionsMet);
 
                         bool previous;
                         m_objectStates[target] = m_objectStates.TryGetValue(target, out previous)
-                            ? previous && showing
-                            : showing;
+                            ? CombineRequestedStates(previous, shouldEnable)
+                            : shouldEnable;
                     }
                 }
 
-                if (rule.componentsToToggle != null)
+                if (rule.componentTargets != null)
                 {
-                    foreach (Behaviour target in rule.componentsToToggle)
+                    foreach (ComponentTarget entry in rule.componentTargets)
                     {
-                        if (target == null || target == this)
+                        if (entry == null || entry.target == null || entry.target == this)
                             continue;
+
+                        Behaviour target = entry.target;
+                        bool shouldEnable = hasConditions &&
+                            (conditionMet == entry.enableWhenConditionsMet);
 
                         bool previous;
                         m_componentStates[target] = m_componentStates.TryGetValue(target, out previous)
-                            ? previous && showing
-                            : showing;
+                            ? CombineRequestedStates(previous, shouldEnable)
+                            : shouldEnable;
                     }
                 }
             }
@@ -174,6 +267,13 @@ public class UIVisibilityController : MonoBehaviour
         {
             m_refreshing = false;
         }
+    }
+
+    private bool CombineRequestedStates(bool previous, bool requested)
+    {
+        return sharedTargetMode == SharedTargetMode.AnyRuleCanEnable
+            ? previous || requested
+            : previous && requested;
     }
 
     private bool IsRuleSatisfied(VisibilityRule rule)
@@ -256,7 +356,7 @@ public class UIVisibilityController : MonoBehaviour
         foreach (VisibilityRule rule in rules)
         {
             if (rule != null)
-                rule.MigrateLegacyWatch();
+                rule.MigrateLegacyData();
         }
     }
 }

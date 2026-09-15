@@ -1130,7 +1130,7 @@ namespace PLAYERTWO.ARPGProject
         /// For armor, the specific slot (Helm, Chest, Pants, Gloves, Boots) is returned.
         /// Returns <see cref="ItemScope.None"/> when the item type has no scope.
         /// </summary>
-        protected virtual ItemScope GetItemScope()
+        public virtual ItemScope GetItemScope()
         {
             if (IsBlade())
                 return ItemScope.Blade;

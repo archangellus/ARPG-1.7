@@ -187,7 +187,9 @@ namespace PLAYERTWO.ARPGProject
         protected bool m_showComparison;
         protected Text m_socketsHeading;
         protected RectTransform m_emptySocketsContainer;
+        protected RectTransform m_occupiedSocketsContainer;
         protected readonly List<GameObject> m_emptySocketImages = new();
+        protected readonly List<GameObject> m_occupiedSocketRows = new();
         protected ItemInstance m_comparisonReference;
 
         /// <summary>
@@ -737,7 +739,9 @@ namespace PLAYERTWO.ARPGProject
             UpdateSocketsHeading(m_item.sockets?.Length ?? 0);
             UpdateEmptySocketImages();
 
-            socketsText.text = hasSockets ? m_item.InspectSockets(emptySocketColor) : "No sockets";
+            UpdateOccupiedSocketRows();
+
+            socketsText.text = hasSockets ? "" : "No sockets";
 
             var differences = m_item.InspectSocketDifferences(
                 m_comparisonReference,
@@ -747,6 +751,7 @@ namespace PLAYERTWO.ARPGProject
 
             if (!string.IsNullOrEmpty(differences))
                 socketsText.text += (socketsText.text.Length > 0 ? "\n\n" : " ") + differences;
+            socketsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(socketsText.text));
         }
 
         protected virtual void UpdateSocketsHeading(int totalSlots)
@@ -836,6 +841,138 @@ namespace PLAYERTWO.ARPGProject
                 m_emptySocketImages[i].SetActive(false);
 
             m_emptySocketsContainer.gameObject.SetActive(emptySocketCount > 0);
+        }
+
+        /// <summary>
+        /// Builds one row per filled socket, with the socket frame and the Socketable's own
+        /// inventory image beside the description of the bonus it grants to this item.
+        /// </summary>
+        protected virtual void UpdateOccupiedSocketRows()
+        {
+            if (m_item.sockets == null)
+            {
+                if (m_occupiedSocketsContainer != null)
+                    m_occupiedSocketsContainer.gameObject.SetActive(false);
+
+                return;
+            }
+
+            EnsureOccupiedSocketsContainer();
+
+            var occupiedCount = 0;
+            var itemScope = m_item.GetItemScope();
+
+            foreach (var socket in m_item.sockets)
+            {
+                if (socket == null)
+                    continue;
+
+                var row = GetOccupiedSocketRow(occupiedCount++);
+                var socketFrame = row.transform.GetChild(0).GetComponent<Image>();
+                var runeImage = socketFrame.transform.GetChild(0).GetComponent<Image>();
+                var description = row.transform.GetChild(1).GetComponent<Text>();
+
+                socketFrame.sprite = emptySocketSprite;
+                socketFrame.enabled = emptySocketSprite != null;
+                runeImage.sprite = socket.data != null ? socket.data.image : null;
+                runeImage.enabled = runeImage.sprite != null;
+                description.text = ItemAttributes.InspectSocket(socket.GetSocketable(), itemScope);
+                row.SetActive(true);
+            }
+
+            for (var i = occupiedCount; i < m_occupiedSocketRows.Count; i++)
+                m_occupiedSocketRows[i].SetActive(false);
+
+            m_occupiedSocketsContainer.gameObject.SetActive(occupiedCount > 0);
+        }
+
+        protected virtual void EnsureOccupiedSocketsContainer()
+        {
+            if (m_occupiedSocketsContainer != null)
+                return;
+
+            var container = new GameObject("Occupied Socket Rows", typeof(RectTransform));
+            m_occupiedSocketsContainer = container.GetComponent<RectTransform>();
+            m_occupiedSocketsContainer.SetParent(socketsContainer.transform, false);
+            m_occupiedSocketsContainer.SetSiblingIndex(socketsText.transform.GetSiblingIndex());
+
+            var layout = container.AddComponent<VerticalLayoutGroup>();
+            layout.childAlignment = TextAnchor.UpperLeft;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 2f;
+
+            var fitter = container.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        protected virtual GameObject GetOccupiedSocketRow(int index)
+        {
+            if (index < m_occupiedSocketRows.Count)
+                return m_occupiedSocketRows[index];
+
+            var row = new GameObject("Occupied Socket", typeof(RectTransform));
+            row.transform.SetParent(m_occupiedSocketsContainer, false);
+
+            var layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 4f;
+
+            var rowLayout = row.AddComponent<LayoutElement>();
+            rowLayout.minHeight = emptySocketImageSize;
+
+            var frameObject = new GameObject("Socket Frame", typeof(RectTransform), typeof(Image));
+            frameObject.transform.SetParent(row.transform, false);
+            var frameRect = frameObject.GetComponent<RectTransform>();
+            frameRect.sizeDelta = new Vector2(emptySocketImageSize, emptySocketImageSize);
+            var frameLayout = frameObject.AddComponent<LayoutElement>();
+            frameLayout.minWidth = emptySocketImageSize;
+            frameLayout.preferredWidth = emptySocketImageSize;
+            frameLayout.minHeight = emptySocketImageSize;
+            frameLayout.preferredHeight = emptySocketImageSize;
+            var frame = frameObject.GetComponent<Image>();
+            frame.preserveAspect = true;
+            frame.raycastTarget = false;
+
+            var runeObject = new GameObject("Rune Image", typeof(RectTransform), typeof(Image));
+            runeObject.transform.SetParent(frameObject.transform, false);
+            var runeRect = runeObject.GetComponent<RectTransform>();
+            runeRect.anchorMin = Vector2.zero;
+            runeRect.anchorMax = Vector2.one;
+            runeRect.offsetMin = Vector2.zero;
+            runeRect.offsetMax = Vector2.zero;
+            var rune = runeObject.GetComponent<Image>();
+            rune.preserveAspect = true;
+            rune.raycastTarget = false;
+
+            var textObject = new GameObject("Effect", typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(row.transform, false);
+            var description = textObject.GetComponent<Text>();
+            CopySocketTextStyle(description);
+            var textLayout = textObject.AddComponent<LayoutElement>();
+            textLayout.flexibleWidth = 1f;
+
+            m_occupiedSocketRows.Add(row);
+            return row;
+        }
+
+        protected virtual void CopySocketTextStyle(Text target)
+        {
+            target.font = socketsText.font;
+            target.fontSize = socketsText.fontSize;
+            target.fontStyle = socketsText.fontStyle;
+            target.color = socketsText.color;
+            target.alignment = TextAnchor.MiddleLeft;
+            target.supportRichText = socketsText.supportRichText;
+            target.horizontalOverflow = HorizontalWrapMode.Wrap;
+            target.verticalOverflow = VerticalWrapMode.Overflow;
+            target.raycastTarget = false;
         }
 
         protected virtual void UpdateSocketableModifiers()
