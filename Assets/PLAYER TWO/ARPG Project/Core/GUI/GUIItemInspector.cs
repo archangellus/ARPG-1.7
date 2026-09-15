@@ -259,10 +259,12 @@ namespace PLAYERTWO.ARPGProject
             }
         }
 
-        protected virtual void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
             m_defaultComparisonToggleAction?.Dispose();
         }
+
 
         protected virtual void Update()
         {
@@ -408,6 +410,7 @@ namespace PLAYERTWO.ARPGProject
             var y = primary.pivot.y == 1 ? temp_corners[1].y : temp_corners[0].y;
 
             m_rect.position = new Vector2(x, y);
+            ClampToCanvasBounds();
         }
 
         /// <inheritdoc/>

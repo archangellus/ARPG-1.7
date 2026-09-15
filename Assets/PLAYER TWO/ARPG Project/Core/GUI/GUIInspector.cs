@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace PLAYERTWO.ARPGProject
 {
@@ -12,6 +13,7 @@ namespace PLAYERTWO.ARPGProject
         protected const float k_fadeDuration = 0.1f;
 
         protected Vector3[] temp_corners = new Vector3[4];
+        protected readonly List<RectTransform> m_visualRects = new();
 
         protected Canvas canvas
         {
@@ -58,6 +60,87 @@ namespace PLAYERTWO.ARPGProject
 
             m_rect.pivot = pivot;
             m_rect.position = new Vector2(x, y);
+            ClampToCanvasBounds();
+        }
+
+        /// <summary>
+        /// Moves the inspector back inside its canvas without relying on the canvas scale,
+        /// render mode, or the Rect Transform pivot. This is intentionally performed in the
+        /// canvas' local space so inspectors also stay visible when a Canvas Scaler is active.
+        /// </summary>
+        protected virtual void ClampToCanvasBounds()
+        {
+            if (!canvas || !(canvas.transform is RectTransform canvasRect))
+                return;
+
+            // The inspector prefab's root does not necessarily contain all of its artwork.
+            // ContentSizeFitters, text, ornamental frames, etc. can extend beyond that root,
+            // so clamping only m_rect still lets visible content leave the screen.
+            m_rect.GetComponentsInChildren(false, m_visualRects);
+
+            var hasBounds = false;
+            var min = Vector2.zero;
+            var max = Vector2.zero;
+
+            foreach (var visualRect in m_visualRects)
+            {
+                if (!visualRect.gameObject.activeInHierarchy)
+                    continue;
+
+                visualRect.GetWorldCorners(temp_corners);
+
+                foreach (var worldCorner in temp_corners)
+                {
+                    var corner = (Vector2)canvasRect.InverseTransformPoint(worldCorner);
+
+                    if (!hasBounds)
+                    {
+                        min = corner;
+                        max = corner;
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        min = Vector2.Min(min, corner);
+                        max = Vector2.Max(max, corner);
+                    }
+                }
+            }
+
+            if (!hasBounds)
+                return;
+
+            var bounds = canvasRect.rect;
+            var offset = Vector2.zero;
+
+            if (max.x - min.x <= bounds.width)
+            {
+                if (min.x < bounds.xMin)
+                    offset.x = bounds.xMin - min.x;
+                else if (max.x > bounds.xMax)
+                    offset.x = bounds.xMax - max.x;
+            }
+            else
+            {
+                // An inspector wider than the canvas cannot fit on both sides. Keep its
+                // leading edge visible rather than allowing an arbitrary off-screen position.
+                offset.x = bounds.xMin - min.x;
+            }
+
+            if (max.y - min.y <= bounds.height)
+            {
+                if (min.y < bounds.yMin)
+                    offset.y = bounds.yMin - min.y;
+                else if (max.y > bounds.yMax)
+                    offset.y = bounds.yMax - max.y;
+            }
+            else
+            {
+                offset.y = bounds.yMax - max.y;
+            }
+
+            if (offset != Vector2.zero)
+                m_rect.position += canvasRect.TransformVector(offset);
         }
 
         protected virtual Vector2 CalculatePivotFrom(Vector2 position)
@@ -87,6 +170,7 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void UpdatePosition()
         {
             transform.position = EntityInputs.GetPointerPosition();
+            ClampToCanvasBounds();
         }
 
         protected void FadIn(System.Action callback = null) =>
@@ -119,6 +203,23 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void Awake()
         {
             InitializeWaits();
+            Canvas.willRenderCanvases += ClampBeforeCanvasRender;
+        }
+
+        /// <summary>
+        /// Clamps after Unity's layout rebuild has resolved ContentSizeFitter and text sizes.
+        /// LateUpdate is too early for dynamically-sized inspector content and can otherwise
+        /// use the previous frame's bounds on the first visible frame.
+        /// </summary>
+        protected virtual void ClampBeforeCanvasRender()
+        {
+            if (isActiveAndEnabled)
+                ClampToCanvasBounds();
+        }
+
+        protected virtual void OnDestroy()
+        {
+            Canvas.willRenderCanvases -= ClampBeforeCanvasRender;
         }
 
 #if UNITY_STANDALONE || UNITY_WEBGL
