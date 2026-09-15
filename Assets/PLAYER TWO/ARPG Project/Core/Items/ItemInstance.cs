@@ -414,6 +414,56 @@ namespace PLAYERTWO.ARPGProject
         public virtual string GetTooltipTitle() => data != null ? GetAffixedName() : "";
 
         /// <summary>
+        /// Returns the broad item type used by the item inspector. Concrete equipment types
+        /// take priority over their base classes, while otherwise-unclassified items use their
+        /// asset name so custom items such as materials still receive a meaningful label.
+        /// </summary>
+        public virtual string GetItemTypeDisplayName()
+        {
+            if (data == null)
+                return "Item";
+
+            if (IsAmulet())
+                return "Amulet";
+            if (IsRing())
+                return "Ring";
+            if (IsArmor())
+                return "Armor";
+            if (IsShield())
+                return "Shield";
+            if (IsWeapon())
+                return "Weapon";
+            if (IsPotion())
+                return "Potion";
+            if (data is ItemTownPortalScroll)
+                return "Town Portal Scroll";
+            if (IsConsumable())
+                return "Consumable";
+            if (IsSkill())
+                return "Skill";
+            if (IsSocketable())
+                return "Socketable";
+
+            return string.IsNullOrWhiteSpace(data.name) ? "Item" : data.name;
+        }
+
+        /// <summary>
+        /// Returns the inspector classification composed of the rarity display name and item
+        /// type (for example, "Rune Amulet"). Items without a valid named rarity use
+        /// "Standard" as their rarity.
+        /// </summary>
+        public virtual string GetRarityAndTypeDisplayName()
+        {
+            var rarity = GetRarity();
+            var rarityName =
+                rarity != null && !string.IsNullOrWhiteSpace(rarity.displayName)
+                    ? rarity.displayName.Trim()
+                    : "Standard";
+
+            return $"{rarityName} {GetItemTypeDisplayName()}";
+        }
+
+        /// <summary>
         /// Appends a "(N sockets)" suffix to the given name when this item has socket slots,
         /// using the singular "socket" when there's exactly one.
         /// </summary>

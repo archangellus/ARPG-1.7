@@ -20,7 +20,7 @@ MonoBehaviour:
   rows: 1
   columns: 1
   canStack: 1
-  stackCapacity: 5
+  stackCapacity: 50
   consumeImmediately: 0
   consumeSound: {fileID: 8300000, guid: e31b555ee14e3e64da2528e3d14aa693, type: 3}
   consumeParticles: {fileID: 8622928865024085140, guid: 7a595a98ef7832b4b9b00ca20cfa2874, type: 3}

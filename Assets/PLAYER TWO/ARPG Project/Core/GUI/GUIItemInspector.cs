@@ -64,6 +64,12 @@ namespace PLAYERTWO.ARPGProject
         public Text itemName;
 
         [Tooltip(
+    "A reference to the Text component displaying the Item's rarity and type (for example, Rune Amulet). "
+        + "If omitted, one is created beside the Item Name at runtime for backwards compatibility."
+)]
+        public Text rarityAndTypeText;
+
+        [Tooltip(
             "A reference to the Text component that represents the Item's potion description."
         )]
         public Text potionDescription;
@@ -465,6 +471,7 @@ namespace PLAYERTWO.ARPGProject
             UpdateHoveredItemImage();
             UpdatePriceText();
             UpdateItemName();
+            UpdateRarityAndTypeText();
             UpdatePotionDescription();
             UpdateAttributes();
             UpdateRequirementsText();
@@ -560,6 +567,28 @@ namespace PLAYERTWO.ARPGProject
                 itemName.color = m_item.GetRarityColor(regularColor);
         }
 
+        /// <summary>
+        /// Updates the rarity/type classification line. Existing inspector prefabs that have
+        /// not assigned the new field get a copy of the name label, preserving their styling
+        /// while ensuring the field appears for every item.
+        /// </summary>
+        protected virtual void UpdateRarityAndTypeText()
+        {
+            if (rarityAndTypeText == null && itemName != null)
+            {
+                rarityAndTypeText = Instantiate(itemName, itemName.transform.parent);
+                rarityAndTypeText.name = "Rarity And Type";
+                rarityAndTypeText.transform.SetSiblingIndex(
+                    itemName.transform.GetSiblingIndex() + 1
+                );
+            }
+
+            if (rarityAndTypeText == null)
+                return;
+
+            rarityAndTypeText.text = m_item.GetRarityAndTypeDisplayName();
+            rarityAndTypeText.color = m_item.GetRarityColor(regularColor);
+        }
         protected virtual void UpdateRequirementsText()
         {
             if (requirementsText == null)
