@@ -6,72 +6,6 @@ namespace PLAYERTWO.ARPGProject
     [System.Serializable]
     public partial class ItemInstance
     {
-        [SerializeField]
-        protected string m_instanceId;
-
-        [SerializeField]
-        protected bool m_isFavorite;
-
-        [SerializeField]
-        protected bool m_isJunk;
-
-        [SerializeField]
-        protected bool m_isLocked;
-
-        [SerializeField]
-        protected int m_salvageRevision;
-
-        /// <summary>A save-stable identity for this owned copy (never an inventory position).</summary>
-        public string instanceId => EnsureInstanceId();
-        public bool isFavorite => m_isFavorite;
-        public bool isJunk => m_isJunk;
-        public bool isLocked => m_isLocked;
-        public int salvageRevision => m_salvageRevision;
-
-        public string EnsureInstanceId()
-        {
-            if (string.IsNullOrEmpty(m_instanceId))
-                m_instanceId = System.Guid.NewGuid().ToString("N");
-            return m_instanceId;
-        }
-
-        public void SetFavorite(bool value)
-        {
-            if (m_isFavorite == value) return;
-            m_isFavorite = value;
-            if (value) m_isJunk = false;
-            m_salvageRevision++;
-            onChanged?.Invoke();
-        }
-
-        public bool TrySetJunk(bool value)
-        {
-            if (value && m_isFavorite) return false;
-            if (m_isJunk != value)
-            {
-                m_isJunk = value;
-                m_salvageRevision++;
-                onChanged?.Invoke();
-            }
-            return true;
-        }
-
-        public void SetLocked(bool value)
-        {
-            if (m_isLocked == value) return;
-            m_isLocked = value;
-            m_salvageRevision++;
-            onChanged?.Invoke();
-        }
-
-        internal void RestoreSalvageMetadata(string id, bool favorite, bool junk, bool locked, int revision)
-        {
-            m_instanceId = string.IsNullOrEmpty(id) ? System.Guid.NewGuid().ToString("N") : id;
-            m_isFavorite = favorite;
-            m_isJunk = junk && !favorite;
-            m_isLocked = locked;
-            m_salvageRevision = revision;
-        }
         /// <summary>
         /// Invoked when the durability changed.
         /// </summary>
@@ -1328,7 +1262,6 @@ namespace PLAYERTWO.ARPGProject
                 sockets[i] = new ItemInstance(socketable.data);
                 attributes ??= new ItemAttributes();
                 attributes.ApplySocket(socketable.GetSocketable(), GetItemScope());
-                m_salvageRevision++;
                 onChanged?.Invoke();
                 return true;
             }
@@ -1345,7 +1278,6 @@ namespace PLAYERTWO.ARPGProject
             if (sockets == null)
                 return;
 
-            var changed = false;
             for (int i = 0; i < sockets.Length; i++)
             {
                 if (sockets[i] == null)
@@ -1353,10 +1285,8 @@ namespace PLAYERTWO.ARPGProject
 
                 attributes?.RemoveSocket(sockets[i].GetSocketable(), GetItemScope());
                 sockets[i] = null;
-                changed = true;
             }
 
-            if (changed) m_salvageRevision++;
             onChanged?.Invoke();
         }
 
@@ -1499,7 +1429,7 @@ namespace PLAYERTWO.ARPGProject
                     )
                     : null;
 
-            var instance = new ItemInstance(
+            return new ItemInstance(
                 item,
                 attributes,
                 serializer.durability,
@@ -1509,14 +1439,6 @@ namespace PLAYERTWO.ARPGProject
                 suffixIndices,
                 sockets
             );
-            instance.RestoreSalvageMetadata(
-                serializer.instanceId,
-                serializer.isFavorite,
-                serializer.isJunk,
-                serializer.isLocked,
-                serializer.salvageRevision
-            );
-            return instance;
         }
     }
 }

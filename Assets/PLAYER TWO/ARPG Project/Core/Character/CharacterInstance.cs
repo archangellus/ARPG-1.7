@@ -26,7 +26,6 @@ namespace PLAYERTWO.ARPGProject
         public CharacterSkills skills;
         public CharacterQuests quests;
         public CharacterScenes scenes;
-        public CharacterSalvageState salvage = new();
 
         public Entity entity { get; protected set; }
 
@@ -96,7 +95,6 @@ namespace PLAYERTWO.ARPGProject
                 skills = CharacterSkills.CreateFromSerializer(serializer.skills),
                 quests = CharacterQuests.CreateFromSerializer(serializer.quests),
                 scenes = CharacterScenes.CreateFromSerializer(serializer.scenes),
-                salvage = serializer.salvage ?? new CharacterSalvageState(),
             };
         }
     }
