@@ -81,10 +81,12 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void SaveBinary()
         {
             var path = GetFilePath();
+            var temporaryPath = path + ".tmp";
             var data = new GameSerializer(m_game);
             var formatter = new BinaryFormatter();
-            using var stream = new FileStream(path, FileMode.Create);
-            formatter.Serialize(stream, data);
+            using (var stream = new FileStream(temporaryPath, FileMode.Create))
+                formatter.Serialize(stream, data);
+            ReplaceSaveFile(temporaryPath, path);
         }
 
         protected virtual GameSerializer LoadBinary()
@@ -115,8 +117,18 @@ namespace PLAYERTWO.ARPGProject
         protected virtual void SaveJSON()
         {
             var path = GetFilePath();
+            var temporaryPath = path + ".tmp";
             var data = new GameSerializer(m_game);
-            File.WriteAllText(path, data.ToJson());
+            File.WriteAllText(temporaryPath, data.ToJson());
+            ReplaceSaveFile(temporaryPath, path);
+        }
+
+        protected virtual void ReplaceSaveFile(string temporaryPath, string path)
+        {
+            if (File.Exists(path))
+                File.Replace(temporaryPath, path, null);
+            else
+                File.Move(temporaryPath, path);
         }
 
         protected virtual GameSerializer LoadJSON()
