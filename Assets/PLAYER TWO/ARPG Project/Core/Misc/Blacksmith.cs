@@ -5,17 +5,6 @@ namespace PLAYERTWO.ARPGProject
     [AddComponentMenu("PLAYER TWO/ARPG Project/NPC/Blacksmith")]
     public class Blacksmith : Interactive
     {
-        [Header("Salvage Settings")]
-        [Tooltip("The deterministic salvage rules available at this Blacksmith.")]
-        public SalvageSettings salvageSettings;
-
-        [Tooltip("A stable, scene-unique identifier used to bind salvage previews to this provider.")]
-        public string salvageProviderId = "town-blacksmith";
-
-        [Min(0.5f)]
-        [Tooltip("Maximum distance from this Blacksmith at which a salvage can be confirmed.")]
-        public float salvageCommitDistance = 4f;
-
         [Header("Item Repair Settings")]
         [Tooltip("Minimum cost of repairing an Item.")]
         public int minPrice;
@@ -35,18 +24,6 @@ namespace PLAYERTWO.ARPGProject
         public bool breakItemOnSocketRemoval = true;
 
         protected Entity m_entity;
-
-        public Entity interactingEntity => m_entity;
-
-        public virtual bool IsSalvageContextValid(Entity entity) =>
-            entity
-            && entity == m_entity
-            && isActiveAndEnabled
-            && interactive
-            && salvageSettings
-            && !string.IsNullOrEmpty(salvageProviderId)
-            && Vector3.Distance(entity.transform.position, transform.position)
-                <= salvageCommitDistance;
 
         protected GUIBlacksmith m_blacksmithWindow => GUIWindowsManager.instance.blacksmith;
 
