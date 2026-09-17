@@ -15,7 +15,7 @@
 ## Steps 1–10
 
 1. **Complete** — inspected project version/packages, item/inventory/equipment/socket, UI, interaction, spawn, and save paths; no asmdef encloses the core runtime scripts.
-2. **Complete (code/configuration types)** — `SalvageMaterialDefinition`, `SalvageRecipe`, routing rules, overrides, fallback, version fingerprint, caps, and high-value rarities are authorable assets. Rules select override first, then unique highest priority, then fallback; malformed recipes are rejected.
+2. **Complete (code/configuration types)** — `SalvageMaterialDefinition`, `SalvageRecipe`, and `SalvageSettings` each live in a same-named source file so Unity can create their ScriptableObject assets. Routing rules, overrides, fallback, version fingerprint, caps, and high-value rarities are authorable. Rules select override first, then unique highest priority, then fallback; malformed recipes are rejected.
 3. **Complete** — stable GUID identity and favorite/junk/lock metadata are serialized on each item. Old saves lazily receive an ID. Wallet balances and operation receipts are character-scoped and serialized in the same character snapshot.
 4. **Complete** — `SalvageService.Evaluate` is shared by manual and bulk UI paths. Only carried equipment with a valid recipe is eligible. Favorite/lock protections are enforced; favorite and junk are mutually exclusive.
 5. **Complete** — previews bind item IDs, revisions, provider, rule fingerprint, operation ID, deterministic material totals, returned socket instances, and high-value confirmation.
@@ -26,6 +26,8 @@
 10. **Code checks complete; Unity checks pending** — repository whitespace validation passed. No Unity executable or generated C# solution is installed in this environment, so compilation, EditMode/PlayMode tests, prefab validation, save/reload, and gameplay acceptance remain Editor checks and are not claimed as passed.
 
 ## Inspector and content setup
+
+For a complete Unity 6000.3.15f1 click-by-click prefab, asset, and Inspector procedure, follow `Docs/Salvage/UNITY_6000_SETUP_GUIDE.md`.
 
 1. Create material assets with **Create > PLAYER TWO > ARPG Project > Salvage > Material**. Set display name/icon; the stable ID is generated once and remains serialized.
 2. Create recipe assets with **... > Salvage > Recipe** and add positive material rows.

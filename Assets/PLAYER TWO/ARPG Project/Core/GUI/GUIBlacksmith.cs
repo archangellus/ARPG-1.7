@@ -89,6 +89,11 @@ namespace PLAYERTWO.ARPGProject
         protected UITab m_repairTab;
         protected UITab m_salvageTab;
 
+        public bool isShowingSalvage => isOpen && m_showingSalvage;
+
+        public virtual bool IsSalvageSelected(ItemInstance item) =>
+            item != null && m_salvageSelected.Contains(item.instanceId);
+
         protected virtual void UpdateButtons()
         {
             repairButton.interactable =
