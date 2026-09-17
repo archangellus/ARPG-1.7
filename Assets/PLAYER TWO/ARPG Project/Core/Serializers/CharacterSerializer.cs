@@ -27,6 +27,7 @@ namespace PLAYERTWO.ARPGProject
         public SkillsSerializer skills;
         public QuestsSerializer quests;
         public ScenesSerializer scenes;
+        public CharacterSalvageState salvage;
 
         public CharacterSerializer(CharacterInstance character)
         {
@@ -54,6 +55,7 @@ namespace PLAYERTWO.ARPGProject
             skills = new SkillsSerializer(character.skills);
             quests = new QuestsSerializer(character.quests);
             scenes = new ScenesSerializer(character.scenes);
+            salvage = character.salvage;
         }
 
         public virtual void ToJson() => JsonUtility.ToJson(this);
