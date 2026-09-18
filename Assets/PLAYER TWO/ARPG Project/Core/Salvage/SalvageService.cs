@@ -15,7 +15,7 @@ namespace PLAYERTWO.ARPGProject
     [Serializable]
     public class SalvageRewardTotal
     {
-        public SalvageMaterialDefinition material;
+        public Item material;
         public long quantity;
     }
 
@@ -71,7 +71,7 @@ namespace PLAYERTWO.ARPGProject
                 items.Add(item);
             }
 
-            var totals = new Dictionary<SalvageMaterialDefinition, long>();
+            var totals = new Dictionary<Item, long>();
             foreach (var item in items)
             {
                 settings.TryGetRecipe(item, out var recipe, out _);
@@ -85,8 +85,6 @@ namespace PLAYERTWO.ARPGProject
                     catch (OverflowException) { error = "The material reward is too large."; return false; }
                 }
             }
-            foreach (var total in totals)
-                if (Game.instance.currentCharacter.salvage.Get(total.Key.id) > settings.materialCap - total.Value) { error = $"The {total.Key.displayName} material cap would be exceeded."; return false; }
 
             var orderedIds = ids.OrderBy(id => id, StringComparer.Ordinal).ToArray();
             var operationId = Guid.NewGuid().ToString("N");
@@ -95,7 +93,7 @@ namespace PLAYERTWO.ARPGProject
                 ticketId = Guid.NewGuid().ToString("N"), operationId = operationId, providerId = providerId,
                 configurationFingerprint = settings.fingerprint, itemIds = orderedIds,
                 itemRevisions = orderedIds.Select(id => byId[id].salvageRevision).ToArray(),
-                materials = totals.OrderBy(pair => pair.Key.id).Select(pair => new SalvageRewardTotal { material = pair.Key, quantity = pair.Value }).ToArray(),
+                materials = totals.OrderBy(pair => pair.Key.name, StringComparer.Ordinal).Select(pair => new SalvageRewardTotal { material = pair.Key, quantity = pair.Value }).ToArray(),
                 returnedSocketables = items.SelectMany(item => item.GetOccupiedSockets()).ToArray(),
                 requiresHighValueConfirmation = items.Any(item => settings.highValueRarityIds.Contains(item.rarityId)),
                 requestHash = $"{providerId}|{settings.fingerprint}|{string.Join(",", orderedIds)}"
@@ -136,9 +134,8 @@ namespace PLAYERTWO.ARPGProject
                 }
 
                 var positions = selected.ToDictionary(item => item, item => inventory.FindPosition(item));
-                var oldBalances = state.materials.Select(value => new SalvageMaterialBalance { materialId = value.materialId, quantity = value.quantity }).ToList();
-                var oldStateRevision = state.revision;
                 var addedSockets = new List<ItemInstance>();
+                var addedMaterials = new List<ItemInstance>();
                 var receiptRecord = new SalvageReceiptRecord { operationId = preview.operationId, requestHash = preview.requestHash, summary = $"Salvaged {selected.Count} item(s)" };
                 try
                 {
@@ -149,16 +146,14 @@ namespace PLAYERTWO.ARPGProject
                         addedSockets.Add(socket);
                     }
                     foreach (var total in preview.materials)
-                        if (!state.TryCredit(total.material.id, total.quantity, settings.materialCap)) throw new InvalidOperationException($"The {total.material.displayName} material cap would be exceeded.");
+                        if (!TryGrantMaterial(inventory, total.material, total.quantity, addedMaterials)) throw new InvalidOperationException($"Make space for the {total.material.name} reward.");
                     state.receipts.Add(receiptRecord);
                     GameSave.instance.Save();
                 }
                 catch (Exception exception)
                 {
                     state.receipts.Remove(receiptRecord);
-                    state.materials.Clear();
-                    state.materials.AddRange(oldBalances);
-                    state.revision = oldStateRevision;
+                    foreach (var material in addedMaterials) inventory.TryRemoveItem(material);
                     foreach (var socket in addedSockets) inventory.TryRemoveItem(socket);
                     foreach (var item in selected) if (!inventory.Contains(item)) inventory.TryInsertItem(item, positions[item].row, positions[item].column);
                     error = exception.Message;
@@ -173,5 +168,26 @@ namespace PLAYERTWO.ARPGProject
         }
 
         public void InvalidateAll() => m_tickets.Clear();
+
+        /// <summary>
+        /// Grants a salvage material as ordinary carried Item Instances, split into full stacks
+        /// when the material is stackable and as individual units otherwise. Each newly inserted
+        /// instance is appended to <paramref name="added"/> so the caller can roll every one of
+        /// them back on failure. Stops and returns false the moment the inventory has no room
+        /// left, leaving whatever was already inserted for the caller to undo.
+        /// </summary>
+        private static bool TryGrantMaterial(Inventory inventory, Item material, long quantity, List<ItemInstance> added)
+        {
+            while (quantity > 0)
+            {
+                var instance = new ItemInstance(material);
+                var stackSize = material.canStack ? (int)Math.Min(quantity, material.stackCapacity) : 1;
+                instance.stack = stackSize;
+                if (!inventory.TryAddItem(instance)) return false;
+                added.Add(instance);
+                quantity -= material.canStack ? stackSize : 1;
+            }
+            return true;
+        }
     }
 }

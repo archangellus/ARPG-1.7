@@ -36,9 +36,6 @@ namespace PLAYERTWO.ARPGProject
     {
         public int configurationVersion = 1;
 
-        [Min(1)]
-        public long materialCap = 999999;
-
         public List<int> highValueRarityIds = new();
         public List<SalvageItemOverride> itemOverrides = new();
         public List<SalvageRoutingRule> rules = new();
@@ -130,21 +127,21 @@ namespace PLAYERTWO.ARPGProject
                 return false;
             }
 
-            var ids = new HashSet<string>();
+            var materials = new HashSet<Item>();
 
             foreach (var reward in recipe.rewards)
             {
                 if (
                     reward?.material == null
-                    || string.IsNullOrEmpty(reward.material.id)
                     || reward.quantity <= 0
+                    || (reward.material.canStack && reward.material.stackCapacity <= 0)
                 )
                 {
                     reason = "The salvage recipe has an invalid material reward.";
                     return false;
                 }
 
-                if (!ids.Add(reward.material.id))
+                if (!materials.Add(reward.material))
                 {
                     reason = "The salvage recipe contains a duplicate material.";
                     return false;
