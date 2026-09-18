@@ -342,7 +342,7 @@ namespace PLAYERTWO.ARPGProject
                         : string.Join(
                             "\n",
                             m_salvagePreview.materials.Select(
-                                value => $"{value.material.displayName}: {value.quantity}"
+                                value => $"{value.material.name}: {value.quantity}"
                             )
                         );
             if (salvageReturnedSocketablesText)
