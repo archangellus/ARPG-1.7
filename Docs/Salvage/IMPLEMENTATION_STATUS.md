@@ -27,7 +27,7 @@
 
 ## Inspector and content setup
 
-For a complete Unity 6000.3.15f1 click-by-click prefab, asset, and Inspector procedure, follow `Docs/Salvage/UNITY_6000_SETUP_GUIDE.md`.
+For a click-by-click procedure to build the Blacksmith window's `repairTabPanel` and `salvageTabPanel` hierarchies and wire every field listed below, follow `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
 
 1. Create material assets as ordinary **Item** assets (`Create > PLAYER TWO > ARPG Project > Item`, or any project item-creation menu). Enable `canStack` and set a positive `stackCapacity`; leave them non-equippable (base `Item`, not `ItemEquippable`) so they can't be worn. No separate material asset type exists anymore — any stackable `Item` can be used as a salvage reward.
 2. Create recipe assets with **... > Salvage > Recipe** and add positive material rows, referencing those Item assets.
