@@ -1,50 +1,64 @@
-# Blacksmith `repairTabPanel` / `salvageTabPanel` setup guide
+# Blacksmith repair/salvage panel setup guide
 
-This is a click-by-click Unity Editor guide for building the two content panels that
-`GUIBlacksmith` (`Assets/PLAYER TWO/ARPG Project/Core/GUI/GUIBlacksmith.cs`) switches
-between: `repairTabPanel` (the existing repair/socket-removal controls) and
-`salvageTabPanel` (the new Salvage tab). Neither panel exists in a scene/prefab yet —
-this fills the "prefab wiring required" gap noted in
-`Docs/Salvage/IMPLEMENTATION_STATUS.md`.
+This is a click-by-click Unity Editor guide for building the Blacksmith window out of
+its three components:
 
-Every field name below is taken directly from `GUIBlacksmith.cs`. Wire the Inspector
+- **`GUIBlacksmith`** (`Assets/PLAYER TWO/ARPG Project/Core/GUI/GUIBlacksmith.cs`) — the
+  window itself: lifecycle, tab switching, and binding the active Blacksmith NPC to the
+  two panels below. Holds no repair- or salvage-specific fields anymore.
+- **`GUIBlacksmithRepairPanel`** (`GUIBlacksmithRepairPanel.cs`) — the Repair tab's own
+  component: repair slot, repair/repair-all, socket removal.
+- **`GUIBlacksmithSalvagePanel`** (`GUIBlacksmithSalvagePanel.cs`) — the Salvage tab's
+  own component: status texts, rarity dropdown, selection and confirm buttons.
+
+None of these panels exist in a scene/prefab yet — this fills the "prefab wiring
+required" gap noted in `Docs/Salvage/IMPLEMENTATION_STATUS.md`.
+
+Every field name below is taken directly from the three scripts. Wire the Inspector
 references exactly as named; nothing here needs a renamed field or a code change.
 
 ## 0. What you're building
 
 ```
 Blacksmith Window (GUIWindow + GUIBlacksmith)
-├── Tabs Container (tabsContainer)         ← Tab.prefab instances go here at runtime
-├── Repair Tab Panel  (repairTabPanel)
-│   ├── Repair Slot                        → slot
-│   ├── Repair Button                      → repairButton
-│   ├── Repair Cost Text                   → repairCostText
-│   ├── Repair All Button                  → repairAllButton
-│   ├── Repair All Cost Text               → repairAllCostText
-│   ├── Remove Sockets Button              → removeSocketsButton
-│   └── Remove Sockets Cost Text           → removeSocketsCostText
-└── Salvage Tab Panel (salvageTabPanel)
-    ├── Selected Count Text                → salvageSelectedCountText
-    ├── Rewards Text                       → salvageRewardsText
-    ├── Returned Socketables Text          → salvageReturnedSocketablesText
-    ├── Message Text                       → salvageMessageText
-    ├── Rarity Dropdown                    → salvageRarityDropdown
-    ├── Select Junk Button                 → salvageSelectJunkButton
-    ├── Select Rarity Button               → salvageSelectRarityButton
-    ├── Select All Eligible Button         → salvageSelectAllEligibleButton
-    ├── Clear Button                       → salvageClearButton
-    └── Confirm Button                     → salvageConfirmButton
+├── Tabs Container (tabsContainer)              ← Tab.prefab instances go here at runtime
+└── Panels Container (panelsContainer)           ← organizational parent, mirrors GUIMerchant's sectionsContainer
+    ├── Repair Panel  (GUIBlacksmithRepairPanel) → GUIBlacksmith.repairPanel
+    │   ├── Repair Slot                          → slot
+    │   ├── Repair Button                        → repairButton
+    │   ├── Repair Cost Text                     → repairCostText
+    │   ├── Repair All Button                    → repairAllButton
+    │   ├── Repair All Cost Text                 → repairAllCostText
+    │   ├── Remove Sockets Button                → removeSocketsButton
+    │   └── Remove Sockets Cost Text             → removeSocketsCostText
+    └── Salvage Panel (GUIBlacksmithSalvagePanel) → GUIBlacksmith.salvagePanel
+        ├── Selected Count Text                  → salvageSelectedCountText
+        ├── Rewards Text                         → salvageRewardsText
+        ├── Returned Socketables Text            → salvageReturnedSocketablesText
+        ├── Message Text                         → salvageMessageText
+        ├── Rarity Dropdown                      → salvageRarityDropdown
+        ├── Select Junk Button                   → salvageSelectJunkButton
+        ├── Select Rarity Button                 → salvageSelectRarityButton
+        ├── Select All Eligible Button           → salvageSelectAllEligibleButton
+        ├── Clear Button                         → salvageClearButton
+        └── Confirm Button                       → salvageConfirmButton
 ```
 
-`repairTabPanel` and `salvageTabPanel` are plain `GameObject` references on
-`GUIBlacksmith` (not prefabs), so they must live as children of the same window this
-component sits on. `GUIBlacksmith.InitializeTabs()` activates one and deactivates the
-other at runtime (`ConfigureTab`) — don't hand-set either one's active state; whatever
-you leave active in the editor gets overridden on `Start()`.
+`GUIBlacksmith.InitializeTabs()` activates one panel's `GameObject` and deactivates the
+other at runtime (`ConfigureTab`) — don't hand-set either panel's active state in the
+editor; whatever you leave active gets overridden on `Start()`.
 
-**Do not wire any `OnClick()`/`OnValueChanged()` events in the Inspector for these
-controls.** `GUIBlacksmith.InitializeCallbacks()` and `InitializeTabs()` add every
-listener in code on `Start()`. Inspector-wired duplicates will double-fire.
+`panelsContainer` is optional and purely organizational: if assigned,
+`InitializeTabs()` reparents both panels under it (matching `GUIMerchant`'s
+`sectionsContainer`/`tabsContainer` split — one container for tabs, one for content).
+If left unassigned, the two panels can live anywhere under the window and everything
+still works; you just lose that hierarchy grouping.
+
+**Do not wire any `OnClick()`/`OnValueChanged()` events in the Inspector for any of
+these controls.** Each panel wires its own listeners in code on `Start()`
+(`GUIBlacksmithRepairPanel.InitializeCallbacks()`, `GUIBlacksmithSalvagePanel.Start()`),
+and `GUIBlacksmith.InitializeTabs()` wires the tab toggles. Inspector-wired duplicates
+will double-fire.
 
 ## 1. Prerequisites
 
@@ -53,9 +67,9 @@ listener in code on `Start()`. Inspector-wired duplicates will double-fire.
 - `Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/GUI/Tab.prefab` — reused as-is for
   `tabPrefab` (same prefab `GUIMerchant` uses for its own tabs).
 - `Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/GUI/Socket Slot.prefab` or
-  `Inventory Slot.prefab` — duplicated as the base for the Repair Slot (see step 3.1).
+  `Inventory Slot.prefab` — duplicated as the base for the Repair Slot (see step 4.2).
 - `GUIWindowsManager` in the scene, so its `blacksmith` field can be assigned once the
-  window exists (step 6).
+  window exists (step 7).
 
 ## 2. Create the Blacksmith window root
 
@@ -70,29 +84,35 @@ listener in code on `Start()`. Inspector-wired duplicates will double-fire.
    run) — `Blacksmith.OnInteract` calls `m_blacksmithWindow.Show(this)`, which expects
    the object to already exist in the hierarchy.
 
-## 3. Tabs row
+## 3. Tabs row and panels container
 
 1. Under `Blacksmith Window`, create an empty child `Tabs Container` with a
    **Horizontal Layout Group** (matches the Merchant tab row) and a
    **Content Size Fitter** if you want it to hug its children.
-2. Add a **Toggle Group** component to `Blacksmith Window` itself (or a dedicated
+2. Create a second empty child, `Panels Container` — this is where the two panel
+   GameObjects from steps 4 and 5 will end up (either by parenting them here yourself,
+   or by assigning `panelsContainer` and letting `InitializeTabs()` reparent them for
+   you at `Start()`).
+3. Add a **Toggle Group** component to `Blacksmith Window` itself (or a dedicated
    `Toggle Group` object) — this is what keeps only one tab toggled on.
-3. Assign on `GUIBlacksmith`:
+4. Assign on `GUIBlacksmith`:
    - `tabPrefab` → `Tab.prefab`
-   - `toggleGroup` → the Toggle Group from step 3.2
+   - `toggleGroup` → the Toggle Group from step 3.3
    - `tabsContainer` → `Tabs Container`'s `RectTransform`
-4. Leave `Tabs Container` empty in the editor — `InitializeTabs()` destroys any
+   - `panelsContainer` → `Panels Container`'s `RectTransform` (optional, see step 0)
+5. Leave `Tabs Container` empty in the editor — `InitializeTabs()` destroys any
    existing children and instantiates exactly two `Tab.prefab` copies ("Repair" and
    "Salvage") into it at `Start()`.
-5. Optional: assign `switchTabClip` to an audio clip for the tab-switch sound.
+6. Optional: assign `switchTabClip` to an audio clip for the tab-switch sound.
 
-## 4. Build `repairTabPanel`
+## 4. Build the Repair panel
 
-1. Under `Blacksmith Window`, create an empty child `Repair Tab Panel`. This is the
-   `GameObject` you'll assign to `GUIBlacksmith.repairTabPanel`.
-2. **Repair Slot** (assign to `slot`, type `GUIBlacksmithSlot`):
+1. Under `Panels Container` (or anywhere under the window, if you skipped
+   `panelsContainer`), create an empty child `Repair Panel`. Add **GUI Blacksmith
+   Repair Panel** (`GUIBlacksmithRepairPanel`) to it.
+2. **Repair Slot** (assign to the panel's `slot`, type `GUIBlacksmithSlot`):
    - Duplicate `Socket Slot.prefab` (or `Inventory Slot.prefab`) into the scene as a
-     child of `Repair Tab Panel`; rename it `Repair Slot`.
+     child of `Repair Panel`; rename it `Repair Slot`.
    - `GUIItemSlot` requires an `Image` component on the same object — the duplicated
      prefab already has one, keep it as the drop-target background.
    - Replace whatever slot script the duplicated prefab carries with
@@ -100,9 +120,10 @@ listener in code on `Start()`. Inspector-wired duplicates will double-fire.
      if Unity won't let two slot scripts coexist on the same `Image`.
    - Keep (or add) a child image for showing the equipped item's icon, matching the
      pattern used by the other slot prefabs.
-   - Assign this object to `GUIBlacksmith.slot`.
+   - Assign this object to `Repair Panel`'s `slot` field.
 3. **Repair controls** — for each, create a UI **Button** (with a child **Text**) or
-   plain **Text** as noted, parented under `Repair Tab Panel`:
+   plain **Text** as noted, parented under `Repair Panel`, and assign to the matching
+   field on `GUIBlacksmithRepairPanel`:
    - `Repair Button` (Button) → `repairButton`
    - `Repair Cost Text` (Text) → `repairCostText`
    - `Repair All Button` (Button) → `repairAllButton`
@@ -110,22 +131,26 @@ listener in code on `Start()`. Inspector-wired duplicates will double-fire.
 4. **Socket removal controls**:
    - `Remove Sockets Button` (Button) → `removeSocketsButton`
    - `Remove Sockets Cost Text` (Text) → `removeSocketsCostText`
-5. Optional audio: assign `repairAudio` and `removeSocketsAudio` on `GUIBlacksmith`.
+5. Optional audio: assign `repairAudio` and `removeSocketsAudio` on
+   `GUIBlacksmithRepairPanel` (these moved here from `GUIBlacksmith` — they're
+   repair-specific).
 6. Optional: set `regularColor` (used to color an unrared item's name in the socket
    removal confirmation message) and edit `removeSocketsConfirmationMessage` if you
    want different wording than the default (`{0}` is replaced with the item's colored
-   display name).
-7. Assign `Repair Tab Panel` to `GUIBlacksmith.repairTabPanel`.
+   display name). Both live on `GUIBlacksmithRepairPanel` now.
+7. On `GUIBlacksmith`, assign `Repair Panel` to `repairPanel`.
 
 Layout tip: group the slot and its buttons with a **Vertical Layout Group** (or your
-own layout) on `Repair Tab Panel` so the panel resizes cleanly; nothing in the code
-depends on a specific layout component.
+own layout) on `Repair Panel` so the panel resizes cleanly; nothing in the code depends
+on a specific layout component.
 
-## 5. Build `salvageTabPanel`
+## 5. Build the Salvage panel
 
-1. Under `Blacksmith Window`, create an empty child `Salvage Tab Panel`. This is the
-   `GameObject` you'll assign to `GUIBlacksmith.salvageTabPanel`.
-2. **Status texts** (plain UI **Text** objects):
+1. Under `Panels Container` (or anywhere under the window), create an empty child
+   `Salvage Panel`. Add **GUI Blacksmith Salvage Panel** (`GUIBlacksmithSalvagePanel`)
+   to it.
+2. **Status texts** (plain UI **Text** objects), assigned to the matching field on
+   `GUIBlacksmithSalvagePanel`:
    - `Selected Count Text` → `salvageSelectedCountText` (shows `"Selected: N"`)
    - `Rewards Text` → `salvageRewardsText` (one `"<Item name>: <quantity>"` line per
      material, or `"No rewards"`)
@@ -136,15 +161,15 @@ depends on a specific layout component.
    - Populate its options in code-consistent order: index `0` = `"None"` (maps to
      `rarityId -1`, i.e. plain/no-rarity items), then one option per entry of
      `GameDatabase.instance.itemRarities` in index order (index `1` → rarity `0`,
-     index `2` → rarity `1`, …). `GUIBlacksmith.SelectSalvageRarity()` reads
+     index `2` → rarity `1`, …). `GUIBlacksmithSalvagePanel.SelectRarity()` reads
      `salvageRarityDropdown.value - 1` directly as the `rarityId` to match, so the
      option order must line up exactly with this offset.
    - You can populate the options list statically in the editor if your rarity list is
      stable, or populate it at runtime from `GameDatabase.instance.itemRarities` before
-     the Blacksmith window is first shown — `GUIBlacksmith` does not populate this
-     dropdown itself.
+     the Blacksmith window is first shown — the panel does not populate this dropdown
+     itself.
 4. **Selection buttons** (UI **Button**, with a child **Text** label), all under
-   `Salvage Tab Panel`:
+   `Salvage Panel`:
    - `Select Junk Button` → `salvageSelectJunkButton`
    - `Select Rarity Button` → `salvageSelectRarityButton` (uses the dropdown's current
      value)
@@ -152,19 +177,19 @@ depends on a specific layout component.
    - `Clear Button` → `salvageClearButton`
 5. **Confirm button**:
    - `Confirm Button` → `salvageConfirmButton`. Its `interactable` state is driven by
-     `RefreshSalvagePreview()` (disabled with an empty/invalid preview or an invalid
-     Blacksmith context) — don't gate it with a `CanvasGroup` or other Inspector-only
-     condition that could disagree with that logic.
-6. Assign `Salvage Tab Panel` to `GUIBlacksmith.salvageTabPanel`.
+     `GUIBlacksmithSalvagePanel.Refresh()` (disabled with an empty/invalid preview or
+     an invalid Blacksmith context) — don't gate it with a `CanvasGroup` or other
+     Inspector-only condition that could disagree with that logic.
+6. On `GUIBlacksmith`, assign `Salvage Panel` to `salvagePanel`.
 
 Layout tip: a **Vertical Layout Group** works well here too — status texts up top,
 selection buttons in a row or grid, Confirm at the bottom.
 
 ## 6. Make equipment rows selectable for salvage
 
-The Salvage tab itself has no item list — selection happens on the existing Inventory
-window's item rows while the Salvage tab is open, via a separate component that must
-be added to the inventory row prefab:
+The Salvage panel itself has no item list — selection happens on the existing
+Inventory window's item rows while the Salvage tab is open, via a separate component
+that must be added to the inventory row prefab:
 
 1. Open `Assets/PLAYER TWO/ARPG Project/Examples/Prefabs/GUI/Inventory Item.prefab`
    (the `GUIItem` row prefab used by the player's inventory grid).
@@ -177,17 +202,21 @@ be added to the inventory row prefab:
 5. Leave the toggle's `onValueChanged` unwired in the Inspector — the script wires it
    in `Awake()`.
 
-This component already handles visibility (it only shows the toggle while
-`GUIWindowsManager.instance.blacksmith.isShowingSalvage` is true) and syncs its checked
-state from `GUIBlacksmith.IsSalvageSelected`, so no extra wiring is needed once it's on
-the row prefab.
+This component talks to `GUIWindowsManager.instance.blacksmith` (the `GUIBlacksmith`
+orchestrator, not either panel directly) — it only shows the toggle while
+`GUIBlacksmith.isShowingSalvage` is true, and syncs its checked state through
+`GUIBlacksmith.IsSalvageSelected`/`SetSalvageSelected`, which pass straight through to
+`salvagePanel`. No extra wiring is needed once it's on the row prefab.
 
 ## 7. Wire the window into `GUIWindowsManager`
 
 Select the `GUIWindowsManager` instance in the scene and assign `Blacksmith Window`
 (the object carrying `GUIBlacksmith`, from step 2) to its `blacksmith` field. This is
 what `Blacksmith.m_blacksmithWindow` (`GUIWindowsManager.instance.blacksmith`) resolves
-to when an NPC with the `Blacksmith` component is interacted with.
+to when an NPC with the `Blacksmith` component is interacted with. It's also what
+`GUIEquipmentSlot` and `GUIItem` use for their `m_blacksmith.slot` right-click/drag
+handling — that still works unchanged, since `GUIBlacksmith.slot` is a read-only
+pass-through to `repairPanel.slot`.
 
 ## 8. Blacksmith NPC assignment
 
@@ -219,3 +248,6 @@ Once wired, in Play Mode:
 - [ ] Closing the window (or the player moving out of `salvageCommitDistance`) clears
       the selection and disables `Confirm` appropriately.
 - [ ] Repair, Repair All, and Remove Sockets still work unchanged on the Repair tab.
+- [ ] Right-clicking/dragging an equippable item while the Blacksmith window is open
+      still places it into the Repair Slot (via `GUIEquipmentSlot`/`GUIItem`'s use of
+      `GUIBlacksmith.slot`), on both the Repair and Salvage tabs.
