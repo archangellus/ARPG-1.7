@@ -108,18 +108,20 @@ Each candidate list is validated via `ValidateRewards` (non-empty, no duplicate
 materials, a stackable material needs a positive `stackCapacity`, `dropChance` within
 `[0, 1]`) once it's the one that would actually be used.
 
-- **`SalvageMaterialAmount.dropChance`** (`[Range(0,1)]`, default `1`): deterministic,
-  not random. Every salvaged item always grants this reward line; `dropChance` scales
-  how much of `quantity` it grants, rounded to the nearest whole unit
-  (`Mathf.RoundToInt(quantity * dropChance)` in `SalvageService.TryCreatePreview`). E.g.
-  `quantity = 100`, `dropChance = 0.459` grants `46` every time, for every item that
-  resolves to this reward line — never zero due to bad luck, never the full `quantity`
-  unless `dropChance = 1`. (This replaced an earlier all-or-nothing random-roll design;
-  changed after testing showed players expect a guaranteed, scaled reward per item
-  rather than a per-item coin flip.) Computed once per item at preview creation and
-  baked into `SalvagePreview.materials`, so a later high-value confirmation commits
-  exactly what the preview showed. A reward line can still net 0 for a given item if
-  `quantity * dropChance` rounds down to 0.
+- **`SalvageMaterialAmount.dropChance`** (`[Range(0,1)]`, default `1`): caps how much of
+  `quantity` a single salvaged item can grant, as a percentage; `quantity` is the fixed
+  configured amount, `dropChance` scales the upper end of a random roll against it. In
+  `SalvageService.TryCreatePreview`: `cap = Mathf.RoundToInt(quantity * dropChance)`,
+  then `granted = UnityEngine.Random.Range(0, cap + 1)` — a uniformly random whole
+  number from `0` to `cap` inclusive, rolled once per reward line per salvaged item.
+  E.g. `quantity = 100`, `dropChance = 0.459` grants a random amount from `0` to `46`
+  each time. `dropChance = 1` allows the full range up to `quantity`; `dropChance = 0`
+  always grants `0`. (This is the third iteration of this mechanic: originally an
+  all-or-nothing per-item roll for the full `quantity`, briefly a deterministic
+  `quantity * dropChance` grant with no randomness, now a random amount capped by
+  `quantity * dropChance`.) Computed once per item at preview creation and baked into
+  `SalvagePreview.materials`, so a later high-value confirmation commits exactly what
+  the preview showed rather than re-rolling.
 - This routing lived on `ItemRarity` itself for one PR (`salvageMaterialsByType`,
   scoped per item type) before moving here as a flat per-rarity list with no type
   breakdown — everything salvage-related is configured on `SalvageSettings` now, not
