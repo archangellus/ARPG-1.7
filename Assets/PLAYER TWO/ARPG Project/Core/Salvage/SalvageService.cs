@@ -77,6 +77,7 @@ namespace PLAYERTWO.ARPGProject
                 settings.TryGetRewards(item, out var rewards, out _);
                 foreach (var reward in rewards)
                 {
+                    if (UnityEngine.Random.value > reward.dropChance) continue;
                     try
                     {
                         totals.TryGetValue(reward.material, out var current);
