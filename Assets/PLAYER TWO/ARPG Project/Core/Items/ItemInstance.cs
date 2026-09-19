@@ -31,6 +31,12 @@ namespace PLAYERTWO.ARPGProject
             return m_instanceId;
         }
 
+        /// <summary>
+        /// Assigns a fresh instance id, discarding whatever it was set to before. Used to repair
+        /// save data where two Item Instances ended up sharing the same id.
+        /// </summary>
+        internal void RegenerateInstanceId() => m_instanceId = System.Guid.NewGuid().ToString("N");
+
         public void SetFavorite(bool value)
         {
             if (m_isFavorite == value) return;

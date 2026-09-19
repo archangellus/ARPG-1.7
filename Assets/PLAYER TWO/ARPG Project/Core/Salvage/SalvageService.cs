@@ -60,7 +60,7 @@ namespace PLAYERTWO.ARPGProject
             if (ids.Distinct().Count() != ids.Count) { error = "The selection contains a duplicate item."; return false; }
             var inventory = owner.inventory.instance;
             var carried = inventory.items.Keys.ToList();
-            if (carried.GroupBy(item => item.instanceId).Any(group => group.Count() > 1)) { error = "Duplicate owned item IDs were detected; save migration must be repaired before salvaging."; return false; }
+            RepairDuplicateInstanceIds(carried);
             var byId = carried.ToDictionary(item => item.instanceId);
             var items = new List<ItemInstance>();
             foreach (var id in ids)
@@ -136,7 +136,7 @@ namespace PLAYERTWO.ARPGProject
             {
                 var inventory = owner.inventory.instance;
                 var carried = inventory.items.Keys.ToList();
-                if (carried.GroupBy(item => item.instanceId).Any(group => group.Count() > 1)) { error = "Duplicate owned item IDs were detected."; return false; }
+                RepairDuplicateInstanceIds(carried);
                 var byId = carried.ToDictionary(item => item.instanceId);
                 var selected = new List<ItemInstance>();
                 for (var i = 0; i < preview.itemIds.Count; i++)
@@ -182,6 +182,21 @@ namespace PLAYERTWO.ARPGProject
         }
 
         public void InvalidateAll() => m_tickets.Clear();
+
+        /// <summary>
+        /// Regenerates the id of every carried Item Instance after the first that shares an
+        /// instanceId with an earlier one, in place. Defense-in-depth alongside the repair
+        /// <see cref="CharacterInventory.CreateFromSerializer"/> already does on load, for a
+        /// character that was loaded before that repair existed and is still active this session.
+        /// </summary>
+        private static void RepairDuplicateInstanceIds(List<ItemInstance> carried)
+        {
+            var seen = new HashSet<string>();
+
+            foreach (var item in carried)
+                if (!seen.Add(item.instanceId))
+                    item.RegenerateInstanceId();
+        }
 
         /// <summary>
         /// Grants a salvage material as ordinary carried Item Instances, split into full stacks

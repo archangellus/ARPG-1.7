@@ -137,6 +137,15 @@ Salvage rewards are granted as ordinary carried `Item` instances instead of a se
 - There is no numeric material cap anymore (`SalvageSettings.materialCap` was removed). The natural limit is carried-inventory grid space: a commit that runs out of room fails with "Make space for the `<Item>` reward" and rolls back everything, exactly like an insufficient-space socketable return.
 - Content implication: author salvage-reward `Item` assets as stackable (`canStack = true`, a real `stackCapacity`) and non-equippable. A non-stackable reward material will consume one grid cell per unit, which is almost certainly not what's wanted for a common salvage byproduct.
 
+## Duplicate instanceId self-repair
+
+`ItemInstance.instanceId` is a save-stable identity, restored verbatim from `ItemSerializer.instanceId` on load (`ItemInstance.CreateFromSerializer` → `RestoreSalvageMetadata`) — the only path that sets it to anything other than a freshly generated GUID. Save data predating this field, or otherwise corrupted, can contain two items sharing the same id, which broke salvage entirely (`SalvageService` used to hard-error with "Duplicate owned item IDs were detected"). Both call sites now self-heal instead:
+
+- `CharacterInventory.CreateFromSerializer` — repairs the loaded inventory right after building it, so a character never carries the collision forward once loaded (`RepairDuplicateInstanceIds`: for each duplicate group, keeps the first occurrence's id and calls `ItemInstance.RegenerateInstanceId()` on every later one).
+- `SalvageService.TryCreatePreview`/`TryCommit` — repair `carried` the same way before using it, as defense-in-depth for a character instance that was already loaded (and thus not touched by the fix above) in a still-running session.
+
+`instanceId` is only read by salvage code and `ItemSerializer`, so regenerating a duplicate's id has no effect on equipment, quests, or anything else that might reference an item.
+
 ## Verification record / remaining Editor acceptance
 
 Programmatic checks run here: `git diff --check` passed. Static inspection confirms all authoritative reward mutation is in `SalvageService.TryCommit`; UI only requests preview/commit.
@@ -144,8 +153,8 @@ Programmatic checks run here: `git diff --check` passed. Static inspection confi
 Run in Unity before release:
 
 - Force script reimport and confirm zero Console compiler errors.
-- Add an `itemOverrides` entry for a Weapon `Item` (6 Metal + 2 Essence, both `dropChance = 1`) and an Armor `Item` (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload. Separately, set one reward line's `dropChance` below 1 and confirm across repeated salvages that it's sometimes granted and sometimes not, all-or-nothing, never a partial quantity. Also add a `rarityOverrides` entry for the Rare rarity and confirm a Rare item with no item override picks it up, while a Rare item that *does* have an item override still uses that instead.
-- Exercise every acceptance row in the implementation guide, especially duplicate request replay, full inventory with socket returns, an inventory too full to receive the granted materials, a deliberate `GameSave.Save` failure, post-save listener exception, old-save migration, provider loss, profile switch, and repeated open/close/respawn.
+- Add an `itemOverrides` entry for a Weapon `Item` (6 Metal + 2 Essence, both `dropChance = 1`) and an Armor `Item` (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload. Separately, set one reward line's `dropChance` below 1 (e.g. `quantity = 100`, `dropChance = 0.459`) and confirm across repeated salvages that the granted amount is a random value from `0` to `46` each time, never the same number twice, never above the cap. Also add a `rarityOverrides` entry for the Rare rarity and confirm a Rare item with no item override picks it up, while a Rare item that *does* have an item override still uses that instead.
+- Exercise every acceptance row in the implementation guide, especially duplicate request replay, full inventory with socket returns, an inventory too full to receive the granted materials, a deliberate `GameSave.Save` failure, post-save listener exception, old-save migration, provider loss, profile switch, repeated open/close/respawn, and loading a save with a duplicated `instanceId` (confirm salvage now proceeds instead of erroring).
 - Regression-check equip, sell, drop, inventory sort, blacksmith socket removal, and old Binary/JSON/PlayerPrefs save loading.
 - Add and serialize the shared Merchant-style tab prefab, ToggleGroup, tab container, Salvage section, and references on the existing Blacksmith window prefab and assign salvage settings on the existing Blacksmith NPC. No separate salvage window/provider should be created. The prefab was not modified automatically because UI layout/reference choices require Unity Editor serialization.
 
