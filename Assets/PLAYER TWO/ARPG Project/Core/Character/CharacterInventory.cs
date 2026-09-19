@@ -62,7 +62,24 @@ namespace PLAYERTWO.ARPGProject
                 inventory.initialItems.Add(instance, new(entry.row, entry.column));
             }
 
+            RepairDuplicateInstanceIds(inventory.initialItems.Keys);
+
             return inventory;
+        }
+
+        /// <summary>
+        /// Save data can end up with two Item Instances sharing the same instanceId (e.g. from
+        /// an older save predating that field, or a corrupted entry). Regenerates the id of every
+        /// duplicate after the first, so this loaded inventory never carries the collision
+        /// forward. The first occurrence keeps its original id.
+        /// </summary>
+        protected static void RepairDuplicateInstanceIds(IEnumerable<ItemInstance> items)
+        {
+            var seen = new HashSet<string>();
+
+            foreach (var item in items)
+                if (!seen.Add(item.instanceId))
+                    item.RegenerateInstanceId();
         }
     }
 }
