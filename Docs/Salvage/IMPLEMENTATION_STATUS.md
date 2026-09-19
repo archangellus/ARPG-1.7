@@ -91,6 +91,12 @@ this order by `TryGetRewards(ItemInstance, out rewards, out reason)`:
    match plain/no-rarity equipment. Falls back to here when no item override matched.
 3. `fallbackRewards` — used when neither of the above matched.
 
+- **`SalvageSettings.defaultRarity`** (optional `ItemRarity`): a plain/unrolled item
+  (`ItemInstance.GetRarity() == null`, e.g. starting gear or a loot roll that didn't
+  assign a rarity) is treated as this rarity when matching `rarityOverrides`, instead
+  of only matching an override left with an empty `rarity` field. Leave it unassigned
+  to keep the old behavior (plain gear only matches an override with `rarity == null`).
+
 Each candidate list is validated via `ValidateRewards` (non-empty, no duplicate
 materials, a stackable material needs a positive `stackCapacity`, `dropChance` within
 `[0, 1]`) once it's the one that would actually be used.
