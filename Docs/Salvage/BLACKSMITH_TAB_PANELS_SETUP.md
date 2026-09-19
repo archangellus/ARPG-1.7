@@ -44,7 +44,15 @@ Blacksmith Window (GUIWindow + GUIBlacksmith)
 
 `GUIBlacksmith.InitializeTabs()` activates one panel's `GameObject` and deactivates the
 other at runtime (`ConfigureTab`) — don't hand-set either panel's active state in the
-editor; whatever you leave active gets overridden on `Start()`.
+editor; whatever you leave active gets overridden as soon as tabs initialize.
+`InitializeTabs()` is idempotent and runs from both `Start()` and `Show()`, whichever
+happens first, so the window shows its `defaultTab` correctly even if `Show()` is
+called before the window's own `Start()` has run (e.g. a window whose `GameObject`
+someone left disabled in the hierarchy despite step 2.4 below).
+
+`defaultTab` (`GUIBlacksmith.BlacksmithTab`, `Repair` or `Salvage`) picks which tab is
+active the moment the window opens — set it in the Inspector instead of relying on
+whichever tab happened to init first.
 
 `panelsContainer` is optional and purely organizational: if assigned,
 `InitializeTabs()` reparents both panels under it (matching `GUIMerchant`'s
@@ -103,6 +111,8 @@ prefabs you assign (steps 5.3 and 5.4).
    existing children and instantiates exactly two `Tab.prefab` copies ("Repair" and
    "Salvage") into it at `Start()`.
 6. Optional: assign `switchTabClip` to an audio clip for the tab-switch sound.
+7. Optional: set `defaultTab` (defaults to `Repair`) if you want the window to open on
+   the Salvage tab instead.
 
 ## 4. Build the Repair panel
 
