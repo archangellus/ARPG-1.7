@@ -14,10 +14,11 @@ namespace PLAYERTWO.ARPGProject
 
         [Range(0, 1)]
         [Tooltip(
-            "The fraction of Quantity granted every time an item salvages into this reward line "
-                + "(e.g. 0.5 grants half of Quantity, rounded to the nearest whole unit). Always "
-                + "granted, once per salvaged item — there is no chance of getting nothing "
-                + "because of this value. 1 means the full Quantity every time."
+            "Caps how much of Quantity a single salvaged item can grant, as a percentage. Each "
+                + "item randomly grants a whole number between 0 and Quantity * Drop Chance "
+                + "(rounded), rolled once per salvaged item. E.g. Quantity 100 with Drop Chance "
+                + "0.459 grants a random amount from 0 to 46. 1 means the full range up to "
+                + "Quantity."
         )]
         public float dropChance = 1f;
     }

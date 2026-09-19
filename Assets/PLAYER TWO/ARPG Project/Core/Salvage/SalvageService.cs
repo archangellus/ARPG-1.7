@@ -77,11 +77,12 @@ namespace PLAYERTWO.ARPGProject
                 settings.TryGetRewards(item, out var rewards, out _);
                 foreach (var reward in rewards)
                 {
-                    var granted = Mathf.RoundToInt(reward.quantity * reward.dropChance);
+                    var cap = Mathf.RoundToInt(reward.quantity * reward.dropChance);
+                    var granted = UnityEngine.Random.Range(0, cap + 1);
                     Debug.Log(
                         $"[Salvage] {item.data.name} ({item.instanceId[..8]}) -> "
                             + $"{reward.material.name}: quantity={reward.quantity} "
-                            + $"dropChance={reward.dropChance:F3} granted={granted}"
+                            + $"dropChance={reward.dropChance:F3} cap={cap} granted={granted}"
                     );
                     if (granted <= 0)
                         continue;
