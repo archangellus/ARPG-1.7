@@ -55,6 +55,14 @@ namespace PLAYERTWO.ARPGProject
         public string fingerprint => $"{name}:{configurationVersion}";
 
         /// <summary>
+        /// Returns the rarity used to match <see cref="rarityOverrides"/> for the given item:
+        /// its own rolled rarity, or <see cref="defaultRarity"/> when it has none (plain
+        /// equipment).
+        /// </summary>
+        public virtual ItemRarity GetEffectiveRarity(ItemInstance item) =>
+            item?.GetRarity() ?? defaultRarity;
+
+        /// <summary>
         /// Resolves the salvage rewards for a given item. Checks, in order: an explicit
         /// per-item-definition override, then a per-rarity override covering every item of that
         /// rarity, then <see cref="fallbackRewards"/>.
@@ -86,10 +94,7 @@ namespace PLAYERTWO.ARPGProject
                 return true;
             }
 
-            var effectiveRarity = item.GetRarity();
-
-            if (effectiveRarity == null)
-                effectiveRarity = defaultRarity;
+            var effectiveRarity = GetEffectiveRarity(item);
 
             foreach (var entry in rarityOverrides)
             {

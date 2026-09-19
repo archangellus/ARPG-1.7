@@ -88,9 +88,17 @@ namespace PLAYERTWO.ARPGProject
             return TryPreviewAndCommit(new List<ItemInstance> { item });
         }
 
-        /// <summary>Salvages every eligible carried item of the given rarity immediately.</summary>
-        public virtual void SalvageByRarity(int rarityId) =>
-            SalvageWhere(item => item.rarityId == rarityId, true);
+        /// <summary>
+        /// Salvages every eligible carried item of the given rarity immediately. Matches on the
+        /// item's effective rarity (<see cref="SalvageSettings.GetEffectiveRarity"/>), so a
+        /// category button also covers plain/unrolled equipment when
+        /// <see cref="SalvageSettings.defaultRarity"/> is set to this rarity.
+        /// </summary>
+        public virtual void SalvageByRarity(ItemRarity rarity) =>
+            SalvageWhere(
+                item => m_blacksmith.salvageSettings.GetEffectiveRarity(item) == rarity,
+                true
+            );
 
         /// <summary>
         /// Salvages every eligible carried item, skipping configured high-value rarities, since
@@ -263,10 +271,9 @@ namespace PLAYERTWO.ARPGProject
         }
 
         /// <summary>
-        /// Instantiates one category button per entry of <see cref="GameDatabase.itemRarities"/>
-        /// (in index order, matching <c>ItemInstance.rarityId</c>), plus a trailing "All Items"
-        /// button. Destroys and recreates any existing children first, so this is safe to call
-        /// again if the rarity list changes.
+        /// Instantiates one category button per entry of <see cref="GameDatabase.itemRarities"/>,
+        /// plus a trailing "All Items" button. Destroys and recreates any existing children
+        /// first, so this is safe to call again if the rarity list changes.
         /// </summary>
         protected virtual void InitializeCategories()
         {
@@ -276,13 +283,8 @@ namespace PLAYERTWO.ARPGProject
             foreach (Transform child in categoriesContainer)
                 Destroy(child.gameObject);
 
-            var rarities = GameDatabase.instance.itemRarities;
-
-            for (var i = 0; i < rarities.Count; i++)
-            {
-                var rarityId = i;
-                CreateCategoryButton(rarities[i].displayName, () => SalvageByRarity(rarityId));
-            }
+            foreach (var rarity in GameDatabase.instance.itemRarities)
+                CreateCategoryButton(rarity.displayName, () => SalvageByRarity(rarity));
 
             CreateCategoryButton("All Items", SalvageAllEligible);
         }
