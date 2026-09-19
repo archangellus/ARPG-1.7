@@ -199,6 +199,15 @@ namespace PLAYERTWO.ARPGProject
         public virtual bool Contains(GUIItem item) => m_inventory.Contains(item.item);
 
         /// <summary>
+        /// Returns the GUI Item representing a given owned Item Instance, or null if none is
+        /// currently displayed. Used by callers that remove an Item Instance directly through
+        /// the underlying <see cref="Inventory"/> (bypassing <see cref="TryRemove"/>) and need to
+        /// destroy its GUI representation themselves, e.g. after a Salvage commit.
+        /// </summary>
+        /// <param name="item">The Item Instance you want to find the GUI Item for.</param>
+        public virtual GUIItem FindGUIItem(ItemInstance item) => m_items.Find(i => i.item == item);
+
+        /// <summary>
         /// Returns the closest cell to a given GUI Item.
         /// </summary>
         /// <param name="item">The GUI Item you want to get the closest position.</param>

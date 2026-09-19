@@ -65,6 +65,16 @@ in one step, prompting only when the batch includes a configured high-value rari
   `ItemSerializer.isJunk` were removed (favorite/lock metadata remain). Old saves still
   carrying an `isJunk` field in their JSON load fine — `JsonUtility` silently ignores
   fields that no longer exist on the target type.
+- `SalvageService.TryCommit` only mutates the data-level `Inventory`/`ItemInstance`
+  model; it has no `GUIItem`/GUI awareness by design. Granted materials and returned
+  socketables get their `GUIItem`s automatically, since `Inventory.TryAddItem` fires
+  `onItemAdded`, which `GUIInventory` already listens to. Consumed items don't have an
+  equivalent reactive path — `GUIInventory` never subscribes to `onItemRemoved` — so
+  `GUIBlacksmithSalvagePanel.Commit` explicitly looks up and destroys each salvaged
+  item's `GUIItem` after a successful commit, via the new `GUIInventory.FindGUIItem`,
+  mirroring the `Destroy(guiItem.gameObject)` pattern already used elsewhere (e.g.
+  `GUIInventory.RemoveStack`, `GUIBlacksmithRepairPanel`'s socket-removal-with-break
+  path) for "this item is now gone" rather than moved/equipped elsewhere.
 
 ## Salvage rewards live on the rarity
 
