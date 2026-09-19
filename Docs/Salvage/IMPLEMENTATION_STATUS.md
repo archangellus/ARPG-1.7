@@ -111,16 +111,20 @@ materials, a stackable material needs a positive `stackCapacity`, `dropChance` w
 - **`SalvageMaterialAmount.dropChance`** (`[Range(0,1)]`, default `1`): caps how much of
   `quantity` a single salvaged item can grant, as a percentage; `quantity` is the fixed
   configured amount, `dropChance` scales the upper end of a random roll against it. In
-  `SalvageService.TryCreatePreview`: `cap = Mathf.RoundToInt(quantity * dropChance)`,
+  `SalvageService.TryCreatePreview`: `cap = Mathf.CeilToInt(quantity * dropChance)`,
   then `granted = UnityEngine.Random.Range(0, cap + 1)` — a uniformly random whole
   number from `0` to `cap` inclusive, rolled once per reward line per salvaged item.
   E.g. `quantity = 100`, `dropChance = 0.459` grants a random amount from `0` to `46`
   each time. `dropChance = 1` allows the full range up to `quantity`; `dropChance = 0`
-  always grants `0`. (This is the third iteration of this mechanic: originally an
-  all-or-nothing per-item roll for the full `quantity`, briefly a deterministic
-  `quantity * dropChance` grant with no randomness, now a random amount capped by
-  `quantity * dropChance`.) Computed once per item at preview creation and baked into
-  `SalvagePreview.materials`, so a later high-value confirmation commits exactly what
+  always grants `0`. `CeilToInt`, not `RoundToInt`: a low-but-nonzero `dropChance` on a
+  small `quantity` (e.g. `quantity = 1`, `dropChance = 0.3`) must still round the cap up
+  to `1`, not down to `0` — `RoundToInt` would make that reward line permanently
+  ungrantable (`Random.Range(0, 0 + 1)` always returns `0`) despite a nonzero configured
+  chance. (This is the third iteration of this mechanic: originally an all-or-nothing
+  per-item roll for the full `quantity`, briefly a deterministic `quantity * dropChance`
+  grant with no randomness, now a random amount capped by `quantity * dropChance`.)
+  Computed once per item at preview creation and baked into `SalvagePreview.materials`,
+  so a later high-value confirmation commits exactly what
   the preview showed rather than re-rolling.
 - This routing lived on `ItemRarity` itself for one PR (`salvageMaterialsByType`,
   scoped per item type) before moving here as a flat per-rarity list with no type

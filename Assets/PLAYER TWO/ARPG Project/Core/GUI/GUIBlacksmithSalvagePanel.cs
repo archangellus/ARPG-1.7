@@ -245,7 +245,17 @@ namespace PLAYERTWO.ARPGProject
             m_rewardIcons.Clear();
 
             if (!salvageRewardsContainer || !materialIconPrefab)
+            {
+                Debug.Log(
+                    $"[Salvage] DisplayRewards: {materials.Count} material(s) to show, but "
+                        + $"salvageRewardsContainer={(salvageRewardsContainer ? "assigned" : "NULL")}, "
+                        + $"materialIconPrefab={(materialIconPrefab ? "assigned" : "NULL")} — nothing "
+                        + "instantiated."
+                );
                 return;
+            }
+
+            Debug.Log($"[Salvage] DisplayRewards: instantiating {materials.Count} material icon(s).");
 
             foreach (var total in materials)
             {
