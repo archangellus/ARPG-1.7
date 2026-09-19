@@ -16,8 +16,11 @@ namespace PLAYERTWO.ARPGProject
     [Serializable]
     public class SalvageRarityOverride
     {
-        [Tooltip("-1 matches equipment with no rarity assigned (plain equipment).")]
-        public int rarityId = -1;
+        [Tooltip(
+            "The rarity this override applies to. Leave empty to match equipment with no rarity "
+                + "assigned (plain equipment)."
+        )]
+        public ItemRarity rarity;
 
         [Tooltip(
             "The materials granted when salvaging any equipment of this rarity, unless a more "
@@ -77,7 +80,7 @@ namespace PLAYERTWO.ARPGProject
 
             foreach (var entry in rarityOverrides)
             {
-                if (entry == null || entry.rarityId != item.rarityId)
+                if (entry == null || entry.rarity != item.GetRarity())
                     continue;
 
                 if (!ValidateRewards(entry.rewards, out reason))
