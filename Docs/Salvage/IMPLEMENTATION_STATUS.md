@@ -21,7 +21,7 @@
 5. **Complete** — previews bind item IDs, revisions, provider, rule fingerprint, operation ID, deterministic material totals, returned socket instances, and high-value confirmation.
 6. **Complete** — commit removes all selected equipment before inserting exact attached socket instances, so newly freed grid cells count. Any insertion failure rolls the runtime draft back.
 7. **Complete, awaiting Editor failure-injection verification** — commits are guarded and idempotent with saved receipts. Inventory removals, granted material items, returned sockets, and the receipt enter one `GameSerializer` save. A pre-save exception rolls runtime state back (including removing any material/socket items already inserted into the inventory); filesystem JSON/binary saves use temp-and-replace.
-8. **Complete (existing-window runtime integration); prefab wiring required** — `GUIBlacksmith` is now a thin window/tab orchestrator; the repair and salvage controls live on their own `GUIBlacksmithRepairPanel`/`GUIBlacksmithSalvagePanel` components (assigned to `GUIBlacksmith.repairPanel`/`salvagePanel`), matching `GUIMerchant`'s tabs/sections split. It instantiates Repair and Salvage `UITab` toggles exactly like `GUIMerchant`. The Salvage panel supports manual row calls, junk, rarity, broad eligible, clear, preview, confirmation, and close. It displays deterministic totals and returned socketables.
+8. **Complete (existing-window runtime integration); prefab wiring required** — `GUIBlacksmith` is now a thin window/tab orchestrator; the repair and salvage controls live on their own `GUIBlacksmithRepairPanel`/`GUIBlacksmithSalvagePanel` components (assigned to `GUIBlacksmith.repairPanel`/`salvagePanel`), matching `GUIMerchant`'s tabs/sections split. It instantiates Repair and Salvage `UITab` toggles exactly like `GUIMerchant`. The Salvage panel has no persistent multi-select/confirm flow: "Directly in Inventory" picking mode salvages one clicked carried item immediately, and an auto-generated (from `GameDatabase.itemRarities`) row of rarity category buttons salvages an entire rarity immediately — both preview-then-commit in one step, prompting only for high-value confirmation. Salvaged materials render as icons (`GUIBlacksmithMaterialIcon`, one per distinct material) instead of a text list.
 9. **Complete (existing-provider integration); content setup required** — the existing `Blacksmith` owns salvage settings/provider identity, receives the player through its existing interaction, checks distance/provider state at commit, and invalidates previews when its window closes.
 10. **Code checks complete; Unity checks pending** — repository whitespace validation passed. No Unity executable or generated C# solution is installed in this environment, so compilation, EditMode/PlayMode tests, prefab validation, save/reload, and gameplay acceptance remain Editor checks and are not claimed as passed.
 
@@ -33,17 +33,36 @@ For a click-by-click procedure to build the Blacksmith window's `GUIBlacksmithRe
 2. Create recipe assets with **... > Salvage > Recipe** and add positive material rows, referencing those Item assets.
 3. Create one **Salvage Settings** asset. Add item overrides and/or rules. `rarityId = -2` means any rarity, `-1` means plain. Higher rule priority wins; equal highest matches are deliberately invalid. Assign high-value rarity indexes. Increment `configurationVersion` whenever a runtime-relevant policy changes.
 4. On the **existing Blacksmith window**, keep `GUIBlacksmith` as the orchestrator only. Assign the same `UITab` prefab used by `GUIMerchant` to `tabPrefab`, a `ToggleGroup` to `toggleGroup`, and an empty tab-row `RectTransform` to `tabsContainer`. Optionally assign a `panelsContainer` `RectTransform` — purely organizational, mirroring `GUIMerchant`'s `sectionsContainer`; if set, both panels are reparented under it at `Start()`. Optionally assign the same style of `switchTabClip` used by the Merchant. `GUIBlacksmith` instantiates the Repair and Salvage tabs at runtime using the Merchant pattern; do **not** create separate tab Buttons or another `GUIWindow`.
-5. Create a `GameObject` with `GUIBlacksmithRepairPanel` for the Repair tab (assign `slot`, `repairButton`, `repairAllButton`, `repairCostText`, `repairAllCostText`, `removeSocketsButton`, `removeSocketsCostText`, and optionally `repairAudio`/`removeSocketsAudio`/`regularColor`/`removeSocketsConfirmationMessage` — these now live on this component, not `GUIBlacksmith`), and a second `GameObject` with `GUIBlacksmithSalvagePanel` for the Salvage tab (assign `salvageSelectedCountText`, `salvageRewardsText`, `salvageReturnedSocketablesText`, `salvageMessageText`, `salvageRarityDropdown`, `salvageConfirmButton`, `salvageSelectJunkButton`, `salvageSelectRarityButton`, `salvageSelectAllEligibleButton`, and `salvageClearButton`). Populate the dropdown with `None` first, then `GameDatabase.itemRarities` in index order. Assign both `GameObject`s to `GUIBlacksmith.repairPanel`/`salvagePanel`. Full click-by-click steps: `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
-6. Existing inventory item rows can call `GUIWindowsManager.instance.blacksmith.SetSalvageSelected(GUIItem.item, bool)` from their selection toggle while the Blacksmith is open — this pass-through on `GUIBlacksmith` forwards to `salvagePanel`. This is the individual-selection boundary; rows never remove items directly. `GUIEquipmentSlot`/`GUIItem` likewise keep addressing the repair slot as `GUIBlacksmith.slot`, a read-only pass-through to `repairPanel.slot`.
-7. On the **existing Blacksmith NPC**, assign `salvageSettings`, a scene-unique stable `salvageProviderId`, and `salvageCommitDistance`. No new provider component is needed. The existing Blacksmith interaction opens the same window on its Repair tab; the player presses the Salvage tab to switch. Granted materials land directly in the player's carried inventory as regular stacked items — there is no separate wallet query.
+5. Create a `GameObject` with `GUIBlacksmithRepairPanel` for the Repair tab (assign `slot`, `repairButton`, `repairAllButton`, `repairCostText`, `repairAllCostText`, `removeSocketsButton`, `removeSocketsCostText`, and optionally `repairAudio`/`removeSocketsAudio`/`regularColor`/`removeSocketsConfirmationMessage` — these live on this component, not `GUIBlacksmith`), and a second `GameObject` with `GUIBlacksmithSalvagePanel` for the Salvage tab (assign `pickingToggle`, optionally `pickingCursorIcon`, `categoriesContainer` + `categoryButtonPrefab`, `salvageRewardsContainer` + `materialIconPrefab`, `salvageReturnedSocketablesText`, `salvageMessageText`). There is no dropdown, no Select Junk/Rarity/All Eligible/Clear/Confirm buttons to wire by hand, and no per-row selection toggle component — see "Salvage interaction model" below. Assign both `GameObject`s to `GUIBlacksmith.repairPanel`/`salvagePanel`. Full click-by-click steps: `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
+6. `GUIItem`'s click handling checks `GUIBlacksmith.IsPickingForSalvage` first on every left/right click — no per-row component or wiring is needed for this; it works the moment `salvagePanel` is assigned on `GUIBlacksmith` (step 5). `GUIEquipmentSlot`/`GUIItem` likewise keep addressing the repair slot as `GUIBlacksmith.slot`, a read-only pass-through to `repairPanel.slot`.
+7. On the **existing Blacksmith NPC**, assign `salvageSettings`, a scene-unique stable `salvageProviderId`, and `salvageCommitDistance`. No new provider component is needed. The existing Blacksmith interaction opens the same window on its Repair tab; the player presses the Salvage tab to switch. Granted materials land directly in the player's carried inventory as regular stacked items — there is no separate wallet query. `salvageSettings` unassigned here is the most common "salvage buttons do nothing" cause — every salvage action reports it through `Message Text` rather than failing silently.
 
-## Selection/protection defaults
+## Salvage interaction model
 
-- Manual selection accepts eligible high-value items; confirmation is mandatory.
-- Select Junk and rarity selection may include eligible high-value items and therefore trigger confirmation.
-- Select All Eligible deliberately skips configured high-value rarities.
-- Favorite, locked, non-equipment, equipped/non-carried, and missing/invalid-recipe items are blocked. Quest item definitions are non-equipment in the current model. No gold or upgrade refund is involved.
-- Stash and consumables are outside scope.
+There is no persistent multi-select-then-confirm flow. Both paths preview and commit
+in one step, prompting only when the batch includes a configured high-value rarity:
+
+- **Directly in Inventory** (`GUIBlacksmithSalvagePanel.pickingToggle`): toggling it on
+  sets `GUIBlacksmith.IsPickingForSalvage`, which `GUIItem.HandleLeftClick`/`HandleRightClick`
+  check first, ahead of every other click behavior (merchant buy, equip, stash, sell).
+  While on, left-clicking any carried equipment Item salvages it immediately via
+  `GUIBlacksmithSalvagePanel.TrySalvageItem`; right-clicking cancels picking mode
+  instead of running its usual handler. Picking mode turns off automatically when the
+  Salvage tab loses focus or the window closes (`GUIBlacksmith.CancelSalvagePicking`).
+- **Salvage by rarity**: `GUIBlacksmithSalvagePanel.InitializeCategories()` instantiates
+  one button per `GameDatabase.instance.itemRarities` entry (labeled from
+  `ItemRarity.displayName`) plus a trailing "All Items" button, into
+  `categoriesContainer`, at `Start()` — nothing to hand-author or keep in sync.
+  Clicking a rarity button salvages every eligible carried item of that rarity,
+  including high-value ones (with confirmation). "All Items" deliberately skips
+  configured high-value rarities, since it's a broad/blanket action rather than an
+  explicit choice of a specific rarity.
+- Favorite, locked, non-equipment, equipped/non-carried, and missing/invalid-recipe
+  items are blocked in both paths via the shared `SalvageService.Evaluate`. Quest item
+  definitions are non-equipment in the current model. No gold or upgrade refund is
+  involved. Stash and consumables are outside scope.
+- The junk item-instance flag (`ItemInstance.isJunk`/`TrySetJunk`) still exists, but no
+  longer has a dedicated salvage entry point — it was removed from the Salvage panel.
 
 ## Materials are inventory items
 
