@@ -13,6 +13,19 @@ namespace PLAYERTWO.ARPGProject
         public List<SalvageMaterialAmount> rewards = new();
     }
 
+    [Serializable]
+    public class SalvageRarityOverride
+    {
+        [Tooltip("-1 matches equipment with no rarity assigned (plain equipment).")]
+        public int rarityId = -1;
+
+        [Tooltip(
+            "The materials granted when salvaging any equipment of this rarity, unless a more "
+                + "specific item override matches."
+        )]
+        public List<SalvageMaterialAmount> rewards = new();
+    }
+
     [CreateAssetMenu(
         fileName = "Salvage Settings",
         menuName = "PLAYER TWO/ARPG Project/Salvage/Settings"
@@ -23,15 +36,17 @@ namespace PLAYERTWO.ARPGProject
 
         public List<int> highValueRarityIds = new();
         public List<SalvageItemOverride> itemOverrides = new();
+        public List<SalvageRarityOverride> rarityOverrides = new();
 
-        [Tooltip("Rewards for equipment with no matching item override.")]
+        [Tooltip("Rewards for equipment with no matching item or rarity override.")]
         public List<SalvageMaterialAmount> fallbackRewards = new();
 
         public string fingerprint => $"{name}:{configurationVersion}";
 
         /// <summary>
         /// Resolves the salvage rewards for a given item. Checks, in order: an explicit
-        /// per-item-definition override, then <see cref="fallbackRewards"/>.
+        /// per-item-definition override, then a per-rarity override covering every item of that
+        /// rarity, then <see cref="fallbackRewards"/>.
         /// </summary>
         public bool TryGetRewards(
             ItemInstance item,
@@ -51,6 +66,18 @@ namespace PLAYERTWO.ARPGProject
             foreach (var entry in itemOverrides)
             {
                 if (entry.item != item.data)
+                    continue;
+
+                if (!ValidateRewards(entry.rewards, out reason))
+                    return false;
+
+                rewards = entry.rewards;
+                return true;
+            }
+
+            foreach (var entry in rarityOverrides)
+            {
+                if (entry == null || entry.rarityId != item.rarityId)
                     continue;
 
                 if (!ValidateRewards(entry.rewards, out reason))

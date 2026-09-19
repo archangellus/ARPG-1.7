@@ -30,7 +30,7 @@
 For a click-by-click procedure to build the Blacksmith window's `GUIBlacksmithRepairPanel` and `GUIBlacksmithSalvagePanel` hierarchies and wire every field listed below, follow `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
 
 1. Create material assets as ordinary **Item** assets (`Create > PLAYER TWO > ARPG Project > Item`, or any project item-creation menu). Enable `canStack` and set a positive `stackCapacity`; leave them non-equippable (base `Item`, not `ItemEquippable`) so they can't be worn. No separate material asset type exists — any stackable `Item` can be used as a salvage reward.
-2. Create one **Salvage Settings** asset (`Create > PLAYER TWO > ARPG Project > Salvage > Settings`). Add `itemOverrides` — one entry per equipment `Item` definition you want to grant salvage rewards for, each with its own `rewards` list of material `Item` + `quantity` + `dropChance` (0–1; 1 = always drops, e.g. 0.1 = 10% chance to grant the full `quantity`, rolled independently per reward line per salvaged item) — and/or `fallbackRewards` (used for any equipment with no matching override), same row shape. Assign high-value rarity indexes. Increment `configurationVersion` whenever a runtime-relevant policy changes. There is no rarity-based routing on this asset or on `ItemRarity` — every equipment `Item` definition needing its own rewards needs its own `itemOverrides` entry.
+2. Create one **Salvage Settings** asset (`Create > PLAYER TWO > ARPG Project > Salvage > Settings`). Each of the following is a `rewards` list of material `Item` + `quantity` + `dropChance` (0–1; 1 = always drops, e.g. 0.1 = 10% chance to grant the full `quantity`, rolled independently per reward line per salvaged item), resolved most-specific-first: `itemOverrides` (one entry per specific equipment `Item` definition), then `rarityOverrides` (one entry per `rarityId` — `-1` for plain/no-rarity equipment — covering every item of that rarity regardless of type), then `fallbackRewards` (everything else). Assign high-value rarity indexes. Increment `configurationVersion` whenever a runtime-relevant policy changes. This is all configured on this one asset — `ItemRarity` assets have no salvage fields.
 3. On the **existing Blacksmith window**, keep `GUIBlacksmith` as the orchestrator only. Assign the same `UITab` prefab used by `GUIMerchant` to `tabPrefab`, a `ToggleGroup` to `toggleGroup`, and an empty tab-row `RectTransform` to `tabsContainer`. Optionally assign a `panelsContainer` `RectTransform` — purely organizational, mirroring `GUIMerchant`'s `sectionsContainer`; if set, both panels are reparented under it at `Start()`. Optionally assign the same style of `switchTabClip` used by the Merchant. `GUIBlacksmith` instantiates the Repair and Salvage tabs at runtime using the Merchant pattern; do **not** create separate tab Buttons or another `GUIWindow`.
 4. Create a `GameObject` with `GUIBlacksmithRepairPanel` for the Repair tab (assign `slot`, `repairButton`, `repairAllButton`, `repairCostText`, `repairAllCostText`, `removeSocketsButton`, `removeSocketsCostText`, and optionally `repairAudio`/`removeSocketsAudio`/`regularColor`/`removeSocketsConfirmationMessage` — these live on this component, not `GUIBlacksmith`), and a second `GameObject` with `GUIBlacksmithSalvagePanel` for the Salvage tab (assign `pickingToggle`, optionally `pickingCursorIcon`, `categoriesContainer` + `categoryButtonPrefab`, `salvageRewardsContainer` + `materialIconPrefab`, `salvageReturnedSocketablesText`, `salvageMessageText`). There is no dropdown, no Select Junk/Rarity/All Eligible/Clear/Confirm buttons to wire by hand, and no per-row selection toggle component — see "Salvage interaction model" below. Assign both `GameObject`s to `GUIBlacksmith.repairPanel`/`salvagePanel`. Full click-by-click steps: `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
 5. `GUIItem`'s click handling checks `GUIBlacksmith.IsPickingForSalvage` first on every left/right click — no per-row component or wiring is needed for this; it works the moment `salvagePanel` is assigned on `GUIBlacksmith` (step 4). `GUIEquipmentSlot`/`GUIItem` likewise keep addressing the repair slot as `GUIBlacksmith.slot`, a read-only pass-through to `repairPanel.slot`.
@@ -75,19 +75,24 @@ in one step, prompting only when the batch includes a configured high-value rari
   `GUIInventory.RemoveStack`, `GUIBlacksmithRepairPanel`'s socket-removal-with-break
   path) for "this item is now gone" rather than moved/equipped elsewhere.
 
-## Salvage rewards: overrides, fallback, drop chance
+## Salvage rewards: item override, rarity override, fallback, drop chance
 
-There is no `SalvageRecipe` asset type, no rule list, and no rarity-owned reward list
-(`ItemRarity.salvageMaterialsByType`, briefly added then removed) anymore. A reward
-list (`List<SalvageMaterialAmount>`, each a material `Item` + `quantity` +
-`dropChance`) is plain data, defined inline in exactly two places:
+There is no `SalvageRecipe` asset type and no priority/rule list. A reward list
+(`List<SalvageMaterialAmount>`, each a material `Item` + `quantity` + `dropChance`) is
+plain data, defined inline in exactly three places on `SalvageSettings`, resolved in
+this order by `TryGetRewards(ItemInstance, out rewards, out reason)`:
 
-- `SalvageSettings.itemOverrides[].rewards` — an explicit per-`Item`-definition reward
-  list, checked first.
-- `SalvageSettings.fallbackRewards` — used when the item has no matching override.
-- `SalvageSettings.TryGetRewards(ItemInstance, out rewards, out reason)` resolves in
-  that order (override → fallback) and validates whichever list it picks via
-  `ValidateRewards`, which now also rejects `dropChance` outside `[0, 1]`.
+1. `itemOverrides[].rewards` — an explicit per-`Item`-definition reward list. Most
+   specific; wins over everything else for that exact `Item` definition.
+2. `rarityOverrides[].rewards` — a `SalvageRarityOverride { rarityId, rewards }` entry
+   covering every item of that rarity (`rarityId -1` = plain/no-rarity equipment),
+   regardless of item type/scope. Falls back to here when no item override matched.
+3. `fallbackRewards` — used when neither of the above matched.
+
+Each candidate list is validated via `ValidateRewards` (non-empty, no duplicate
+materials, a stackable material needs a positive `stackCapacity`, `dropChance` within
+`[0, 1]`) once it's the one that would actually be used.
+
 - **`SalvageMaterialAmount.dropChance`** (`[Range(0,1)]`, default `1`): the chance this
   reward line is granted at all, rolled once per reward line per salvaged item, in
   `SalvageService.TryCreatePreview` (`UnityEngine.Random.value > dropChance` skips it).
@@ -97,10 +102,10 @@ list (`List<SalvageMaterialAmount>`, each a material `Item` + `quantity` +
   confirmation commits exactly what the preview showed rather than re-rolling. An item
   can legitimately yield zero materials if every one of its reward lines misses its
   roll — the item is still consumed.
-- Routing by rarity is gone entirely (it existed only briefly, added and then removed
-  in the same day) — every equipment `Item` definition that should have salvage
-  rewards needs its own `itemOverrides` entry; anything else falls through to
-  `fallbackRewards`.
+- This routing lived on `ItemRarity` itself for one PR (`salvageMaterialsByType`,
+  scoped per item type) before moving here as a flat per-rarity list with no type
+  breakdown — everything salvage-related is configured on `SalvageSettings` now, not
+  spread across `ItemRarity` assets.
 
 ## Materials are inventory items
 
@@ -119,7 +124,7 @@ Programmatic checks run here: `git diff --check` passed. Static inspection confi
 Run in Unity before release:
 
 - Force script reimport and confirm zero Console compiler errors.
-- Add an `itemOverrides` entry for a Weapon `Item` (6 Metal + 2 Essence, both `dropChance = 1`) and an Armor `Item` (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload. Separately, set one reward line's `dropChance` below 1 and confirm across repeated salvages that it's sometimes granted and sometimes not, all-or-nothing, never a partial quantity.
+- Add an `itemOverrides` entry for a Weapon `Item` (6 Metal + 2 Essence, both `dropChance = 1`) and an Armor `Item` (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload. Separately, set one reward line's `dropChance` below 1 and confirm across repeated salvages that it's sometimes granted and sometimes not, all-or-nothing, never a partial quantity. Also add a `rarityOverrides` entry for the Rare rarity and confirm a Rare item with no item override picks it up, while a Rare item that *does* have an item override still uses that instead.
 - Exercise every acceptance row in the implementation guide, especially duplicate request replay, full inventory with socket returns, an inventory too full to receive the granted materials, a deliberate `GameSave.Save` failure, post-save listener exception, old-save migration, provider loss, profile switch, and repeated open/close/respawn.
 - Regression-check equip, sell, drop, inventory sort, blacksmith socket removal, and old Binary/JSON/PlayerPrefs save loading.
 - Add and serialize the shared Merchant-style tab prefab, ToggleGroup, tab container, Salvage section, and references on the existing Blacksmith window prefab and assign salvage settings on the existing Blacksmith NPC. No separate salvage window/provider should be created. The prefab was not modified automatically because UI layout/reference choices require Unity Editor serialization.
