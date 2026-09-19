@@ -18,7 +18,8 @@ namespace PLAYERTWO.ARPGProject
     {
         [Tooltip(
             "The rarity this override applies to. Leave empty to match equipment with no rarity "
-                + "assigned (plain equipment)."
+                + "assigned (plain equipment), unless Salvage Settings' Default Rarity substitutes "
+                + "a rarity for plain equipment instead."
         )]
         public ItemRarity rarity;
 
@@ -36,6 +37,13 @@ namespace PLAYERTWO.ARPGProject
     public class SalvageSettings : ScriptableObject
     {
         public int configurationVersion = 1;
+
+        [Tooltip(
+            "Optional. When assigned, equipment with no rarity rolled (plain equipment) is "
+                + "treated as this rarity when matching Rarity Overrides below, instead of only "
+                + "matching an override left with an empty Rarity field."
+        )]
+        public ItemRarity defaultRarity;
 
         public List<int> highValueRarityIds = new();
         public List<SalvageItemOverride> itemOverrides = new();
@@ -78,9 +86,14 @@ namespace PLAYERTWO.ARPGProject
                 return true;
             }
 
+            var effectiveRarity = item.GetRarity();
+
+            if (effectiveRarity == null)
+                effectiveRarity = defaultRarity;
+
             foreach (var entry in rarityOverrides)
             {
-                if (entry == null || entry.rarity != item.GetRarity())
+                if (entry == null || entry.rarity != effectiveRarity)
                     continue;
 
                 if (!ValidateRewards(entry.rewards, out reason))
