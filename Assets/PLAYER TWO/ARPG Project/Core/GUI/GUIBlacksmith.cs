@@ -140,6 +140,12 @@ namespace PLAYERTWO.ARPGProject
             base.Show();
             m_inventory = GUIWindowsManager.instance.GetInventory();
             m_inventory.GetComponent<GUIWindow>().SafeCall(w => w.Show());
+
+            if (!repairPanel)
+                Debug.LogWarning("GUIBlacksmith: repairPanel is not assigned; the Repair tab will not function.", this);
+            if (!salvagePanel)
+                Debug.LogWarning("GUIBlacksmith: salvagePanel is not assigned; the Salvage tab will not function.", this);
+
             repairPanel.SafeCall(panel => panel.Bind(blacksmith));
             salvagePanel.SafeCall(panel => panel.Bind(blacksmith));
             repairPanel.SafeCall(panel => panel.Refresh());
