@@ -96,6 +96,13 @@ this order by `TryGetRewards(ItemInstance, out rewards, out reason)`:
   assign a rarity) is treated as this rarity when matching `rarityOverrides`, instead
   of only matching an override left with an empty `rarity` field. Leave it unassigned
   to keep the old behavior (plain gear only matches an override with `rarity == null`).
+- **`SalvageSettings.GetEffectiveRarity(ItemInstance)`** — `item.GetRarity() ?? defaultRarity`.
+  The single source of truth for which `ItemRarity` an item counts as for salvage
+  purposes; both `TryGetRewards` and the Salvage tab's rarity category buttons
+  (`GUIBlacksmithSalvagePanel.SalvageByRarity(ItemRarity)`) use it, so a category
+  button also picks up plain/unrolled equipment when it's assigned to `defaultRarity`.
+  The buttons are generated one per `GameDatabase.itemRarities` entry (by `ItemRarity`
+  reference, not index) plus a trailing "All Items" button.
 
 Each candidate list is validated via `ValidateRewards` (non-empty, no duplicate
 materials, a stackable material needs a positive `stackCapacity`, `dropChance` within
