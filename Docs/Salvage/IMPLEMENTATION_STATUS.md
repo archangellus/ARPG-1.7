@@ -84,9 +84,11 @@ this order by `TryGetRewards(ItemInstance, out rewards, out reason)`:
 
 1. `itemOverrides[].rewards` — an explicit per-`Item`-definition reward list. Most
    specific; wins over everything else for that exact `Item` definition.
-2. `rarityOverrides[].rewards` — a `SalvageRarityOverride { rarityId, rewards }` entry
-   covering every item of that rarity (`rarityId -1` = plain/no-rarity equipment),
-   regardless of item type/scope. Falls back to here when no item override matched.
+2. `rarityOverrides[].rewards` — a `SalvageRarityOverride { rarity, rewards }` entry
+   covering every item of that rarity, regardless of item type/scope. `rarity` is a
+   direct `ItemRarity` asset reference (drag-and-drop in the Inspector, not a raw
+   index), matched against `ItemInstance.GetRarity()`; leave `rarity` unassigned to
+   match plain/no-rarity equipment. Falls back to here when no item override matched.
 3. `fallbackRewards` — used when neither of the above matched.
 
 Each candidate list is validated via `ValidateRewards` (non-empty, no duplicate
