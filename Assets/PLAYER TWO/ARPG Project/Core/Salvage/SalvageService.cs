@@ -77,7 +77,10 @@ namespace PLAYERTWO.ARPGProject
                 settings.TryGetRewards(item, out var rewards, out _);
                 foreach (var reward in rewards)
                 {
-                    var cap = Mathf.RoundToInt(reward.quantity * reward.dropChance);
+                    // CeilToInt (not RoundToInt) so a low but nonzero dropChance on a small
+                    // quantity (e.g. quantity=1, dropChance=0.3) still yields cap=1, rather than
+                    // rounding the cap down to 0 and making that reward line ungrantable.
+                    var cap = Mathf.CeilToInt(reward.quantity * reward.dropChance);
                     var granted = UnityEngine.Random.Range(0, cap + 1);
                     Debug.Log(
                         $"[Salvage] {item.data.name} ({item.instanceId[..8]}) -> "
