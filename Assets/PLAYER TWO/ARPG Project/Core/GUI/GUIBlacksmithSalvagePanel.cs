@@ -140,6 +140,8 @@ namespace PLAYERTWO.ARPGProject
                     items.Add(item);
             }
 
+            Debug.Log($"[Salvage] SalvageWhere gathered {items.Count} eligible item(s) for this batch.");
+
             if (items.Count == 0)
             {
                 SetMessage("No eligible items to salvage.");
