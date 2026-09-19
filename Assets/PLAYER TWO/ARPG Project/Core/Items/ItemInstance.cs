@@ -13,9 +13,6 @@ namespace PLAYERTWO.ARPGProject
         protected bool m_isFavorite;
 
         [SerializeField]
-        protected bool m_isJunk;
-
-        [SerializeField]
         protected bool m_isLocked;
 
         [SerializeField]
@@ -24,7 +21,6 @@ namespace PLAYERTWO.ARPGProject
         /// <summary>A save-stable identity for this owned copy (never an inventory position).</summary>
         public string instanceId => EnsureInstanceId();
         public bool isFavorite => m_isFavorite;
-        public bool isJunk => m_isJunk;
         public bool isLocked => m_isLocked;
         public int salvageRevision => m_salvageRevision;
 
@@ -39,21 +35,8 @@ namespace PLAYERTWO.ARPGProject
         {
             if (m_isFavorite == value) return;
             m_isFavorite = value;
-            if (value) m_isJunk = false;
             m_salvageRevision++;
             onChanged?.Invoke();
-        }
-
-        public bool TrySetJunk(bool value)
-        {
-            if (value && m_isFavorite) return false;
-            if (m_isJunk != value)
-            {
-                m_isJunk = value;
-                m_salvageRevision++;
-                onChanged?.Invoke();
-            }
-            return true;
         }
 
         public void SetLocked(bool value)
@@ -64,11 +47,10 @@ namespace PLAYERTWO.ARPGProject
             onChanged?.Invoke();
         }
 
-        internal void RestoreSalvageMetadata(string id, bool favorite, bool junk, bool locked, int revision)
+        internal void RestoreSalvageMetadata(string id, bool favorite, bool locked, int revision)
         {
             m_instanceId = string.IsNullOrEmpty(id) ? System.Guid.NewGuid().ToString("N") : id;
             m_isFavorite = favorite;
-            m_isJunk = junk && !favorite;
             m_isLocked = locked;
             m_salvageRevision = revision;
         }
@@ -1512,7 +1494,6 @@ namespace PLAYERTWO.ARPGProject
             instance.RestoreSalvageMetadata(
                 serializer.instanceId,
                 serializer.isFavorite,
-                serializer.isJunk,
                 serializer.isLocked,
                 serializer.salvageRevision
             );

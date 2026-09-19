@@ -55,12 +55,19 @@ namespace PLAYERTWO.ARPGProject
         /// </summary>
         public GUIBlacksmithSlot slot => repairPanel ? repairPanel.slot : null;
 
-        public virtual bool IsSalvageSelected(ItemInstance item) =>
-            salvagePanel && salvagePanel.IsSelected(item);
+        /// <summary>
+        /// True while the Salvage tab's "Directly in Inventory" picking mode is active, meaning
+        /// the next left-click on a carried equipment Item (handled by <see cref="GUIItem"/>)
+        /// should salvage it instead of the item's normal click behavior.
+        /// </summary>
+        public virtual bool IsPickingForSalvage => isShowingSalvage && salvagePanel && salvagePanel.isPicking;
 
-        /// <summary>Selection hook for inventory rows shown alongside the Blacksmith window.</summary>
-        public virtual bool SetSalvageSelected(ItemInstance item, bool selected) =>
-            salvagePanel && salvagePanel.SetSelected(item, selected);
+        /// <summary>Salvage hook for inventory items clicked while picking mode is active.</summary>
+        public virtual bool TryPickForSalvage(ItemInstance item) =>
+            salvagePanel && salvagePanel.TrySalvageItem(item);
+
+        /// <summary>Turns off picking mode, e.g. on a cancel click or when leaving the tab.</summary>
+        public virtual void CancelSalvagePicking() => salvagePanel.SafeCall(panel => panel.CancelPicking());
 
         /// <summary>
         /// Creates the Blacksmith tabs with the same UITab prefab, ToggleGroup, and
@@ -102,8 +109,8 @@ namespace PLAYERTWO.ARPGProject
                 {
                     section.SafeCall(panel => panel.SetActive(value));
                     m_showingSalvage = value && section == salvagePanel.SafeGet(panel => panel.gameObject);
-                    if (m_showingSalvage)
-                        salvagePanel.SafeCall(panel => panel.Refresh());
+                    if (!m_showingSalvage)
+                        CancelSalvagePicking();
                     if (m_audio)
                         m_audio.PlayUiEffect(switchTabClip);
                 }
@@ -131,7 +138,6 @@ namespace PLAYERTWO.ARPGProject
                 m_showingSalvage = true;
                 repairPanel.SafeCall(panel => panel.gameObject.SetActive(false));
                 salvagePanel.SafeCall(panel => panel.gameObject.SetActive(true));
-                salvagePanel.SafeCall(panel => panel.Refresh());
             }
         }
 
@@ -140,6 +146,12 @@ namespace PLAYERTWO.ARPGProject
             base.Show();
             m_inventory = GUIWindowsManager.instance.GetInventory();
             m_inventory.GetComponent<GUIWindow>().SafeCall(w => w.Show());
+
+            if (!repairPanel)
+                Debug.LogWarning("GUIBlacksmith: repairPanel is not assigned; the Repair tab will not function.", this);
+            if (!salvagePanel)
+                Debug.LogWarning("GUIBlacksmith: salvagePanel is not assigned; the Salvage tab will not function.", this);
+
             repairPanel.SafeCall(panel => panel.Bind(blacksmith));
             salvagePanel.SafeCall(panel => panel.Bind(blacksmith));
             repairPanel.SafeCall(panel => panel.Refresh());
@@ -152,14 +164,11 @@ namespace PLAYERTWO.ARPGProject
                 return;
 
             repairPanel.SafeCall(panel => panel.Refresh());
-
-            if (m_showingSalvage)
-                salvagePanel.SafeCall(panel => panel.Refresh());
         }
 
         protected override void OnClose()
         {
-            salvagePanel.SafeCall(panel => panel.ResetSelection());
+            CancelSalvagePicking();
             ShowRepairTab();
 
             if (!m_inventory)

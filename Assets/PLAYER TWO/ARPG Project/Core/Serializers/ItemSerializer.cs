@@ -25,7 +25,6 @@ namespace PLAYERTWO.ARPGProject
         public int[] socketItemIds;
         public string instanceId;
         public bool isFavorite;
-        public bool isJunk;
         public bool isLocked;
         public int salvageRevision;
 
@@ -35,7 +34,6 @@ namespace PLAYERTWO.ARPGProject
         {
             instanceId = item.instanceId;
             isFavorite = item.isFavorite;
-            isJunk = item.isJunk;
             isLocked = item.isLocked;
             salvageRevision = item.salvageRevision;
             itemId = GameDatabase.instance.GetElementId<Item>(item.data);

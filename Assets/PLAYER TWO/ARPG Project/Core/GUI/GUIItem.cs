@@ -202,6 +202,12 @@ namespace PLAYERTWO.ARPGProject
 
         protected virtual void HandleLeftClick()
         {
+            if (m_blacksmith.SafeGet(b => b.IsPickingForSalvage))
+            {
+                m_blacksmith.TryPickForSalvage(item);
+                return;
+            }
+
             if (onMerchant)
                 HandleBuy();
             else if (!GUI.instance.selected)
@@ -216,6 +222,12 @@ namespace PLAYERTWO.ARPGProject
 
         protected virtual void HandleRightClick()
         {
+            if (m_blacksmith.SafeGet(b => b.IsPickingForSalvage))
+            {
+                m_blacksmith.CancelSalvagePicking();
+                return;
+            }
+
             if (onMerchant)
             {
 #if UNITY_ANDROID || UNITY_IOS

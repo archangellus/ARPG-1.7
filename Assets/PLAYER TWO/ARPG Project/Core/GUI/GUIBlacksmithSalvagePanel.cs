@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,40 +7,74 @@ using UnityEngine.UI;
 namespace PLAYERTWO.ARPGProject
 {
     /// <summary>
-    /// The Blacksmith window's Salvage tab: selection, preview, and commit. Bound to the active
-    /// Blacksmith NPC context by <see cref="GUIBlacksmith"/>. Selection itself is driven by
-    /// <see cref="GUIBlacksmithSalvageToggle"/> on the player's inventory item rows, which call
-    /// back into this panel through <see cref="GUIBlacksmith"/>'s pass-through methods.
+    /// The Blacksmith window's Salvage tab. Two ways to salvage: toggle "Directly in Inventory"
+    /// to enter picking mode and left-click carried equipment one at a time (handled by
+    /// <see cref="GUIItem"/> through <see cref="GUIBlacksmith"/>'s pass-throughs), or click a
+    /// rarity category button to salvage every eligible carried item of that rarity at once.
+    /// Both paths preview then immediately commit through <see cref="SalvageService"/>, prompting
+    /// for confirmation only when the batch includes a configured high-value rarity. Bound to the
+    /// active Blacksmith NPC context by <see cref="GUIBlacksmith"/>.
     /// </summary>
     [AddComponentMenu("PLAYER TWO/ARPG Project/GUI/GUI Blacksmith Salvage Panel")]
     public class GUIBlacksmithSalvagePanel : MonoBehaviour
     {
-        public Text salvageSelectedCountText;
-        public Text salvageRewardsText;
+        [Header("Direct Salvage")]
+        [Tooltip(
+            "Toggling this on enters picking mode: the next left-click on a carried equipment "
+                + "Item salvages it immediately. Stays on until toggled off, right-clicked away, "
+                + "or the tab/window closes."
+        )]
+        public Toggle pickingToggle;
+
+        [Tooltip("Optional icon that follows the pointer while picking mode is active.")]
+        public RectTransform pickingCursorIcon;
+
+        [Header("Salvage By Rarity")]
+        [Tooltip("Container the rarity category buttons are instantiated into at runtime.")]
+        public RectTransform categoriesContainer;
+
+        [Tooltip(
+            "Button prefab instantiated once per configured rarity tier, plus one for 'All Items'."
+        )]
+        public Button categoryButtonPrefab;
+
+        [Header("Results")]
+        [Tooltip("Container the salvaged material icons are instantiated into after a salvage.")]
+        public RectTransform salvageRewardsContainer;
+
+        [Tooltip("Prefab instantiated once per distinct salvaged material.")]
+        public GUIBlacksmithMaterialIcon materialIconPrefab;
+
+        [Tooltip("Lists the socketed items returned to the inventory by the last salvage.")]
         public Text salvageReturnedSocketablesText;
+
+        [Tooltip("Eligibility/error/success feedback.")]
         public Text salvageMessageText;
-        public Dropdown salvageRarityDropdown;
-        public Button salvageConfirmButton;
-        public Button salvageSelectJunkButton;
-        public Button salvageSelectRarityButton;
-        public Button salvageSelectAllEligibleButton;
-        public Button salvageClearButton;
 
         protected Blacksmith m_blacksmith;
-        protected readonly HashSet<string> m_selected = new();
         protected readonly SalvageService m_service = new();
-        protected SalvagePreview m_preview;
+        protected readonly List<GUIBlacksmithMaterialIcon> m_rewardIcons = new();
+
+        /// <summary>True while "Directly in Inventory" picking mode is active.</summary>
+        public bool isPicking => pickingToggle && pickingToggle.isOn;
 
         /// <summary>Binds the Blacksmith NPC context this panel operates against.</summary>
         public virtual void Bind(Blacksmith blacksmith) => m_blacksmith = blacksmith;
 
-        public virtual bool IsSelected(ItemInstance item) =>
-            item != null && m_selected.Contains(item.instanceId);
+        /// <summary>Turns picking mode off, e.g. when leaving the tab or closing the window.</summary>
+        public virtual void CancelPicking() => pickingToggle.SafeCall(t => t.isOn = false);
 
-        public virtual bool SetSelected(ItemInstance item, bool selected)
+        /// <summary>
+        /// Attempts to salvage a single carried Item Instance immediately. Used by picking mode
+        /// via <see cref="GUIItem"/>'s click handling.
+        /// </summary>
+        public virtual bool TrySalvageItem(ItemInstance item)
         {
-            if (!m_blacksmith || item == null || !m_blacksmith.interactingEntity)
+            if (!m_blacksmith || !m_blacksmith.interactingEntity)
+            {
+                SetMessage("The Blacksmith is no longer available.");
                 return false;
+            }
 
             var inventory = m_blacksmith.interactingEntity.inventory.instance;
             var eligibility = m_service.Evaluate(item, inventory, m_blacksmith.salvageSettings);
@@ -50,55 +85,40 @@ namespace PLAYERTWO.ARPGProject
                 return false;
             }
 
-            if (selected)
-                m_selected.Add(item.instanceId);
-            else
-                m_selected.Remove(item.instanceId);
-
-            Refresh();
-            return true;
+            return TryPreviewAndCommit(new[] { item.instanceId });
         }
 
-        public virtual void SelectJunk() => SelectWhere(item => item.isJunk, true);
+        /// <summary>Salvages every eligible carried item of the given rarity immediately.</summary>
+        public virtual void SalvageByRarity(int rarityId) =>
+            SalvageWhere(item => item.rarityId == rarityId, true);
 
-        public virtual void SelectRarity()
-        {
-            if (!salvageRarityDropdown)
-                return;
-
-            SelectWhere(item => item.rarityId == salvageRarityDropdown.value - 1, true);
-        }
-
-        public virtual void SelectAllEligible() =>
-            SelectWhere(
+        /// <summary>
+        /// Salvages every eligible carried item, skipping configured high-value rarities, since
+        /// this is a broad/blanket action rather than an explicit choice of a specific rarity.
+        /// </summary>
+        public virtual void SalvageAllEligible() =>
+            SalvageWhere(
                 item => !m_blacksmith.salvageSettings.highValueRarityIds.Contains(item.rarityId),
                 false
             );
 
-        public virtual void ClearSelection()
+        protected virtual void SalvageWhere(Func<ItemInstance, bool> predicate, bool includeHighValue)
         {
-            m_selected.Clear();
-            Refresh();
-        }
-
-        /// <summary>Invalidates any pending preview and clears the selection without refreshing
-        /// the (possibly hidden) UI. Used when the Blacksmith window closes.</summary>
-        public virtual void ResetSelection()
-        {
-            m_service.InvalidateAll();
-            m_preview = null;
-            m_selected.Clear();
-        }
-
-        protected virtual void SelectWhere(
-            System.Func<ItemInstance, bool> predicate,
-            bool includeHighValue
-        )
-        {
-            if (!m_blacksmith || !m_blacksmith.interactingEntity || !m_blacksmith.salvageSettings)
+            if (!m_blacksmith || !m_blacksmith.interactingEntity)
+            {
+                SetMessage("The Blacksmith is no longer available.");
                 return;
+            }
+
+            if (!m_blacksmith.salvageSettings)
+            {
+                SetMessage("Salvage settings are not assigned on the Blacksmith.");
+                return;
+            }
 
             var inventory = m_blacksmith.interactingEntity.inventory.instance;
+            var ids = new List<string>();
+
             foreach (var item in inventory.items.Keys)
             {
                 if (!predicate(item))
@@ -109,30 +129,51 @@ namespace PLAYERTWO.ARPGProject
                 )
                     continue;
                 if (m_service.Evaluate(item, inventory, m_blacksmith.salvageSettings).eligible)
-                    m_selected.Add(item.instanceId);
+                    ids.Add(item.instanceId);
             }
 
-            Refresh();
+            if (ids.Count == 0)
+            {
+                SetMessage("No eligible items to salvage.");
+                return;
+            }
+
+            TryPreviewAndCommit(ids);
         }
 
-        protected virtual void OnConfirmClicked()
+        protected virtual bool TryPreviewAndCommit(IEnumerable<string> ids)
         {
-            if (m_preview == null)
-                return;
+            m_service.InvalidateAll();
 
-            if (m_preview.requiresHighValueConfirmation)
+            if (
+                !m_service.TryCreatePreview(
+                    ids,
+                    m_blacksmith.interactingEntity,
+                    m_blacksmith.salvageSettings,
+                    m_blacksmith.salvageProviderId,
+                    out var preview,
+                    out var error
+                )
+            )
+            {
+                SetMessage(error);
+                return false;
+            }
+
+            if (preview.requiresHighValueConfirmation)
             {
                 UIConfirmationScreen.instance.Show(
                     "Salvage the selected high-value equipment? This cannot be undone.",
-                    () => Commit(true)
+                    () => Commit(preview, true)
                 );
-                return;
+                return true;
             }
 
-            Commit(false);
+            Commit(preview, false);
+            return true;
         }
 
-        protected virtual void Commit(bool highValueConfirmed)
+        protected virtual void Commit(SalvagePreview preview, bool highValueConfirmed)
         {
             var owner = m_blacksmith.SafeGet(b => b.interactingEntity);
 
@@ -144,7 +185,7 @@ namespace PLAYERTWO.ARPGProject
 
             if (
                 m_service.TryCommit(
-                    m_preview,
+                    preview,
                     owner,
                     m_blacksmith.salvageSettings,
                     m_blacksmith.salvageProviderId,
@@ -154,63 +195,42 @@ namespace PLAYERTWO.ARPGProject
                 )
             )
             {
-                m_selected.Clear();
                 SetMessage(receipt.summary);
-                Refresh();
+                DisplayRewards(preview.materials);
+                DisplayReturnedSocketables(preview.returnedSocketables);
                 return;
             }
 
             SetMessage(error);
         }
 
-        /// <summary>Recomputes the preview from the current selection and refreshes every field.</summary>
-        public virtual void Refresh()
+        protected virtual void DisplayRewards(IReadOnlyList<SalvageRewardTotal> materials)
         {
-            if (!m_blacksmith || !m_blacksmith.interactingEntity)
+            foreach (var icon in m_rewardIcons)
+                if (icon)
+                    Destroy(icon.gameObject);
+            m_rewardIcons.Clear();
+
+            if (!salvageRewardsContainer || !materialIconPrefab)
                 return;
 
-            var inventory = m_blacksmith.interactingEntity.inventory.instance;
-            var carriedIds = new HashSet<string>(
-                inventory.items.Keys.Select(item => item.instanceId)
-            );
-            m_selected.RemoveWhere(id => !carriedIds.Contains(id));
-            m_service.InvalidateAll();
-            m_preview = null;
+            foreach (var total in materials)
+            {
+                var icon = Instantiate(materialIconPrefab, salvageRewardsContainer);
+                icon.Initialize(total.material, total.quantity);
+                m_rewardIcons.Add(icon);
+            }
+        }
 
-            if (
-                m_selected.Count > 0
-                && !m_service.TryCreatePreview(
-                    m_selected,
-                    m_blacksmith.interactingEntity,
-                    m_blacksmith.salvageSettings,
-                    m_blacksmith.salvageProviderId,
-                    out m_preview,
-                    out var error
-                )
-            )
-                SetMessage(error);
+        protected virtual void DisplayReturnedSocketables(IReadOnlyList<ItemInstance> socketables)
+        {
+            if (!salvageReturnedSocketablesText)
+                return;
 
-            if (salvageSelectedCountText)
-                salvageSelectedCountText.text = $"Selected: {m_selected.Count}";
-            if (salvageRewardsText)
-                salvageRewardsText.text =
-                    m_preview == null
-                        ? "No rewards"
-                        : string.Join(
-                            "\n",
-                            m_preview.materials.Select(value => $"{value.material.name}: {value.quantity}")
-                        );
-            if (salvageReturnedSocketablesText)
-                salvageReturnedSocketablesText.text =
-                    m_preview == null || m_preview.returnedSocketables.Count == 0
-                        ? "No socketables returned"
-                        : string.Join(
-                            "\n",
-                            m_preview.returnedSocketables.Select(item => item.data.name)
-                        );
-            if (salvageConfirmButton)
-                salvageConfirmButton.interactable =
-                    m_preview != null && m_blacksmith.IsSalvageContextValid(m_blacksmith.interactingEntity);
+            salvageReturnedSocketablesText.text =
+                socketables == null || socketables.Count == 0
+                    ? "No socketables returned"
+                    : string.Join("\n", socketables.Select(item => item.data.name));
         }
 
         protected virtual void SetMessage(string message)
@@ -219,13 +239,58 @@ namespace PLAYERTWO.ARPGProject
                 salvageMessageText.text = message;
         }
 
+        /// <summary>
+        /// Instantiates one category button per entry of <see cref="GameDatabase.itemRarities"/>
+        /// (in index order, matching <c>ItemInstance.rarityId</c>), plus a trailing "All Items"
+        /// button. Destroys and recreates any existing children first, so this is safe to call
+        /// again if the rarity list changes.
+        /// </summary>
+        protected virtual void InitializeCategories()
+        {
+            if (!categoriesContainer || !categoryButtonPrefab)
+                return;
+
+            foreach (Transform child in categoriesContainer)
+                Destroy(child.gameObject);
+
+            var rarities = GameDatabase.instance.itemRarities;
+
+            for (var i = 0; i < rarities.Count; i++)
+            {
+                var rarityId = i;
+                CreateCategoryButton(rarities[i].displayName, () => SalvageByRarity(rarityId));
+            }
+
+            CreateCategoryButton("All Items", SalvageAllEligible);
+        }
+
+        protected virtual void CreateCategoryButton(string label, UnityEngine.Events.UnityAction onClick)
+        {
+            var button = Instantiate(categoryButtonPrefab, categoriesContainer);
+            var text = button.GetComponentInChildren<Text>();
+
+            if (text)
+                text.text = label;
+
+            button.onClick.AddListener(onClick);
+        }
+
+        protected virtual void SetPickingVisual(bool picking) =>
+            pickingCursorIcon.SafeCall(icon => icon.gameObject.SetActive(picking));
+
         protected virtual void Start()
         {
-            salvageConfirmButton?.onClick.AddListener(OnConfirmClicked);
-            salvageSelectJunkButton?.onClick.AddListener(SelectJunk);
-            salvageSelectRarityButton?.onClick.AddListener(SelectRarity);
-            salvageSelectAllEligibleButton?.onClick.AddListener(SelectAllEligible);
-            salvageClearButton?.onClick.AddListener(ClearSelection);
+            InitializeCategories();
+            pickingToggle?.onValueChanged.AddListener(SetPickingVisual);
+            SetPickingVisual(isPicking);
+        }
+
+        protected virtual void Update()
+        {
+            if (!isPicking || !pickingCursorIcon || !pickingCursorIcon.gameObject.activeSelf)
+                return;
+
+            pickingCursorIcon.position = EntityInputs.GetPointerPosition();
         }
     }
 }
