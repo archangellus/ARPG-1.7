@@ -85,7 +85,7 @@ namespace PLAYERTWO.ARPGProject
                 return false;
             }
 
-            return TryPreviewAndCommit(new[] { item.instanceId });
+            return TryPreviewAndCommit(new List<ItemInstance> { item });
         }
 
         /// <summary>Salvages every eligible carried item of the given rarity immediately.</summary>
@@ -117,7 +117,7 @@ namespace PLAYERTWO.ARPGProject
             }
 
             var inventory = m_blacksmith.interactingEntity.inventory.instance;
-            var ids = new List<string>();
+            var items = new List<ItemInstance>();
 
             foreach (var item in inventory.items.Keys)
             {
@@ -129,25 +129,25 @@ namespace PLAYERTWO.ARPGProject
                 )
                     continue;
                 if (m_service.Evaluate(item, inventory, m_blacksmith.salvageSettings).eligible)
-                    ids.Add(item.instanceId);
+                    items.Add(item);
             }
 
-            if (ids.Count == 0)
+            if (items.Count == 0)
             {
                 SetMessage("No eligible items to salvage.");
                 return;
             }
 
-            TryPreviewAndCommit(ids);
+            TryPreviewAndCommit(items);
         }
 
-        protected virtual bool TryPreviewAndCommit(IEnumerable<string> ids)
+        protected virtual bool TryPreviewAndCommit(List<ItemInstance> items)
         {
             m_service.InvalidateAll();
 
             if (
                 !m_service.TryCreatePreview(
-                    ids,
+                    items.Select(item => item.instanceId),
                     m_blacksmith.interactingEntity,
                     m_blacksmith.salvageSettings,
                     m_blacksmith.salvageProviderId,
@@ -164,16 +164,16 @@ namespace PLAYERTWO.ARPGProject
             {
                 UIConfirmationScreen.instance.Show(
                     "Salvage the selected high-value equipment? This cannot be undone.",
-                    () => Commit(preview, true)
+                    () => Commit(preview, items, true)
                 );
                 return true;
             }
 
-            Commit(preview, false);
+            Commit(preview, items, false);
             return true;
         }
 
-        protected virtual void Commit(SalvagePreview preview, bool highValueConfirmed)
+        protected virtual void Commit(SalvagePreview preview, List<ItemInstance> items, bool highValueConfirmed)
         {
             var owner = m_blacksmith.SafeGet(b => b.interactingEntity);
 
@@ -196,12 +196,35 @@ namespace PLAYERTWO.ARPGProject
             )
             {
                 SetMessage(receipt.summary);
+                DestroyConsumedGUIItems(items);
                 DisplayRewards(preview.materials);
                 DisplayReturnedSocketables(preview.returnedSocketables);
                 return;
             }
 
             SetMessage(error);
+        }
+
+        /// <summary>
+        /// Destroys the GUI representation of every successfully-salvaged Item Instance.
+        /// <see cref="SalvageService.TryCommit"/> only removes items from the data-level
+        /// <see cref="Inventory"/>; nothing else in that path is GUI-aware, so without this the
+        /// consumed items' <see cref="GUIItem"/>s would keep showing in the grid.
+        /// </summary>
+        protected virtual void DestroyConsumedGUIItems(List<ItemInstance> items)
+        {
+            var guiInventory = GUIWindowsManager.instance.GetInventory();
+
+            if (!guiInventory)
+                return;
+
+            foreach (var item in items)
+            {
+                var guiItem = guiInventory.FindGUIItem(item);
+
+                if (guiItem)
+                    Destroy(guiItem.gameObject);
+            }
         }
 
         protected virtual void DisplayRewards(IReadOnlyList<SalvageRewardTotal> materials)
