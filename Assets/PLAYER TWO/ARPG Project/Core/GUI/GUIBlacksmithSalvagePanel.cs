@@ -95,8 +95,17 @@ namespace PLAYERTWO.ARPGProject
             bool includeHighValue
         )
         {
-            if (!m_blacksmith || !m_blacksmith.interactingEntity || !m_blacksmith.salvageSettings)
+            if (!m_blacksmith || !m_blacksmith.interactingEntity)
+            {
+                SetMessage("The Blacksmith is no longer available.");
                 return;
+            }
+
+            if (!m_blacksmith.salvageSettings)
+            {
+                SetMessage("Salvage settings are not assigned on the Blacksmith.");
+                return;
+            }
 
             var inventory = m_blacksmith.interactingEntity.inventory.instance;
             foreach (var item in inventory.items.Keys)
