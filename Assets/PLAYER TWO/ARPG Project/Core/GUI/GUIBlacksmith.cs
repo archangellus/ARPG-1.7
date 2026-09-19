@@ -12,6 +12,13 @@ namespace PLAYERTWO.ARPGProject
     [AddComponentMenu("PLAYER TWO/ARPG Project/GUI/GUI Blacksmith")]
     public class GUIBlacksmith : GUIWindow
     {
+        /// <summary>Which tab is shown when the Blacksmith window is first opened.</summary>
+        public enum BlacksmithTab
+        {
+            Repair,
+            Salvage,
+        }
+
         [Header("Panels")]
         [Tooltip("The panel with the repair and socket-removal controls.")]
         public GUIBlacksmithRepairPanel repairPanel;
@@ -38,6 +45,9 @@ namespace PLAYERTWO.ARPGProject
 
         [Tooltip("The Audio Clip that plays when switching between tabs.")]
         public AudioClip switchTabClip;
+
+        [Tooltip("Which tab is active by default whenever the Blacksmith window is opened.")]
+        public BlacksmithTab defaultTab = BlacksmithTab.Repair;
 
         protected GUIInventory m_inventory;
         protected UITab m_repairTab;
@@ -71,11 +81,14 @@ namespace PLAYERTWO.ARPGProject
 
         /// <summary>
         /// Creates the Blacksmith tabs with the same UITab prefab, ToggleGroup, and
-        /// value-change section switching used by <see cref="GUIMerchant"/>.
+        /// value-change section switching used by <see cref="GUIMerchant"/>. Idempotent: a call
+        /// after the tabs already exist is a no-op, so both <see cref="Start"/> and
+        /// <see cref="Show"/> can call it without risk of double-initializing, whichever runs
+        /// first (covers the window being opened before its own Start() has run).
         /// </summary>
         protected virtual void InitializeTabs()
         {
-            if (!tabPrefab || !tabsContainer || !toggleGroup)
+            if (!tabPrefab || !tabsContainer || !toggleGroup || m_repairTab || m_salvageTab)
                 return;
 
             foreach (Transform child in tabsContainer)
@@ -144,6 +157,7 @@ namespace PLAYERTWO.ARPGProject
         public virtual void Show(Blacksmith blacksmith)
         {
             base.Show();
+            InitializeTabs();
             m_inventory = GUIWindowsManager.instance.GetInventory();
             m_inventory.GetComponent<GUIWindow>().SafeCall(w => w.Show());
 
@@ -155,7 +169,11 @@ namespace PLAYERTWO.ARPGProject
             repairPanel.SafeCall(panel => panel.Bind(blacksmith));
             salvagePanel.SafeCall(panel => panel.Bind(blacksmith));
             repairPanel.SafeCall(panel => panel.Refresh());
-            ShowRepairTab();
+
+            if (defaultTab == BlacksmithTab.Salvage)
+                ShowSalvageTab();
+            else
+                ShowRepairTab();
         }
 
         public virtual void Refresh()
