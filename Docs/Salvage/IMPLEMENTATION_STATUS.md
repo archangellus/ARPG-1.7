@@ -16,8 +16,8 @@
 
 1. **Complete** — inspected project version/packages, item/inventory/equipment/socket, UI, interaction, spawn, and save paths; no asmdef encloses the core runtime scripts.
 2. **Complete (code/configuration types)** — `SalvageRecipe` and `SalvageSettings` each live in a same-named source file so Unity can create their ScriptableObject assets. Salvage materials are ordinary `Item` assets (stackable, non-equippable) rather than a bespoke material type — see "Materials are inventory items" below. Routing rules, overrides, fallback, version fingerprint, and high-value rarities are authorable. Rules select override first, then unique highest priority, then fallback; malformed recipes are rejected.
-3. **Complete** — stable GUID identity and favorite/junk/lock metadata are serialized on each item. Old saves lazily receive an ID. Salvage materials are granted directly into the carried inventory (serialized by the existing `InventorySerializer`); `CharacterSalvageState` now only holds idempotency receipts, character-scoped and serialized in the same character snapshot.
-4. **Complete** — `SalvageService.Evaluate` is shared by manual and bulk UI paths. Only carried equipment with a valid recipe is eligible. Favorite/lock protections are enforced; favorite and junk are mutually exclusive.
+3. **Complete** — stable GUID identity and favorite/lock metadata are serialized on each item. Old saves lazily receive an ID. Salvage materials are granted directly into the carried inventory (serialized by the existing `InventorySerializer`); `CharacterSalvageState` now only holds idempotency receipts, character-scoped and serialized in the same character snapshot. There is no junk flag — see "Salvage interaction model" below.
+4. **Complete** — `SalvageService.Evaluate` is shared by manual and bulk UI paths. Only carried equipment with a valid recipe is eligible. Favorite/lock protections are enforced.
 5. **Complete** — previews bind item IDs, revisions, provider, rule fingerprint, operation ID, deterministic material totals, returned socket instances, and high-value confirmation.
 6. **Complete** — commit removes all selected equipment before inserting exact attached socket instances, so newly freed grid cells count. Any insertion failure rolls the runtime draft back.
 7. **Complete, awaiting Editor failure-injection verification** — commits are guarded and idempotent with saved receipts. Inventory removals, granted material items, returned sockets, and the receipt enter one `GameSerializer` save. A pre-save exception rolls runtime state back (including removing any material/socket items already inserted into the inventory); filesystem JSON/binary saves use temp-and-replace.
@@ -61,8 +61,10 @@ in one step, prompting only when the batch includes a configured high-value rari
   items are blocked in both paths via the shared `SalvageService.Evaluate`. Quest item
   definitions are non-equipment in the current model. No gold or upgrade refund is
   involved. Stash and consumables are outside scope.
-- The junk item-instance flag (`ItemInstance.isJunk`/`TrySetJunk`) still exists, but no
-  longer has a dedicated salvage entry point — it was removed from the Salvage panel.
+- The junk item-instance flag is gone entirely: `ItemInstance.isJunk`/`TrySetJunk` and
+  `ItemSerializer.isJunk` were removed (favorite/lock metadata remain). Old saves still
+  carrying an `isJunk` field in their JSON load fine — `JsonUtility` silently ignores
+  fields that no longer exist on the target type.
 
 ## Materials are inventory items
 
@@ -88,7 +90,7 @@ Run in Unity before release:
 
 ## Known boundaries
 
-- There is no pre-existing favorite/junk/loadout system or quest-equipment subtype; the added item-instance metadata is the authoritative protection store.
+- There is no pre-existing favorite/loadout system or quest-equipment subtype; the added item-instance metadata (favorite, locked) is the authoritative protection store.
 - Existing socket insertion intentionally reduces a socketable to a fresh instance of its definition. Salvage preserves the exact state that actually exists in `sockets`; changing socket insertion/state persistence is outside salvage scope.
 - Runtime notification events from the underlying inventory fire while the draft is installed. The existing project has no mutation/event batching API; the salvage window refreshes only after commit. Other listeners must not autosave independently during `TryCommit`.
 - Materials now compete with equipment for carried-inventory grid space (see "Materials are inventory items" above); there is no reserved, uncapped-by-grid storage for them anymore.
