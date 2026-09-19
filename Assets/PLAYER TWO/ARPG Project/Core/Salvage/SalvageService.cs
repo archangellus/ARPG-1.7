@@ -77,7 +77,15 @@ namespace PLAYERTWO.ARPGProject
                 settings.TryGetRewards(item, out var rewards, out _);
                 foreach (var reward in rewards)
                 {
-                    if (UnityEngine.Random.value > reward.dropChance) continue;
+                    var roll = UnityEngine.Random.value;
+                    var success = roll <= reward.dropChance;
+                    Debug.Log(
+                        $"[Salvage] {item.data.name} ({item.instanceId[..8]}) -> "
+                            + $"{reward.material.name}: roll={roll:F3} dropChance={reward.dropChance:F3} "
+                            + $"success={success}"
+                    );
+                    if (!success)
+                        continue;
                     try
                     {
                         totals.TryGetValue(reward.material, out var current);
@@ -86,6 +94,11 @@ namespace PLAYERTWO.ARPGProject
                     catch (OverflowException) { error = "The material reward is too large."; return false; }
                 }
             }
+
+            Debug.Log(
+                $"[Salvage] Batch of {items.Count} item(s) -> totals: "
+                    + string.Join(", ", totals.Select(pair => $"{pair.Key.name}={pair.Value}"))
+            );
 
             var orderedIds = ids.OrderBy(id => id, StringComparer.Ordinal).ToArray();
             var operationId = Guid.NewGuid().ToString("N");
