@@ -8,24 +8,9 @@ namespace PLAYERTWO.ARPGProject
     public class SalvageItemOverride
     {
         public Item item;
-        public SalvageRecipe recipe;
-    }
 
-    [Serializable]
-    public class SalvageRoutingRule
-    {
-        public ItemScope scope =
-            ItemScope.Weapon
-            | ItemScope.Armor
-            | ItemScope.Shield
-            | ItemScope.Ring
-            | ItemScope.Amulet;
-
-        [Tooltip("-1 matches items without a rarity; -2 matches any rarity.")]
-        public int rarityId = -2;
-
-        public int priority;
-        public SalvageRecipe recipe;
+        [Tooltip("The materials granted when salvaging this specific Item, overriding its rarity's own rewards.")]
+        public List<SalvageMaterialAmount> rewards = new();
     }
 
     [CreateAssetMenu(
@@ -38,18 +23,28 @@ namespace PLAYERTWO.ARPGProject
 
         public List<int> highValueRarityIds = new();
         public List<SalvageItemOverride> itemOverrides = new();
-        public List<SalvageRoutingRule> rules = new();
-        public SalvageRecipe fallbackRecipe;
+
+        [Tooltip(
+            "Rewards for equipment with no rarity assigned (rarityId -1), or whose rarity has no "
+                + "matching Salvage Settings entry for the item's type."
+        )]
+        public List<SalvageMaterialAmount> fallbackRewards = new();
 
         public string fingerprint => $"{name}:{configurationVersion}";
 
-        public bool TryGetRecipe(
+        /// <summary>
+        /// Resolves the salvage rewards for a given item. Checks, in order: an explicit
+        /// per-item-definition override, then the item's own <see cref="ItemRarity"/> asset
+        /// (<see cref="ItemRarity.GetSalvageRewards"/>, keyed by item type), then
+        /// <see cref="fallbackRewards"/>.
+        /// </summary>
+        public bool TryGetRewards(
             ItemInstance item,
-            out SalvageRecipe recipe,
+            out List<SalvageMaterialAmount> rewards,
             out string reason
         )
         {
-            recipe = null;
+            rewards = null;
             reason = null;
 
             if (item?.data == null)
@@ -63,73 +58,41 @@ namespace PLAYERTWO.ARPGProject
                 if (entry.item != item.data)
                     continue;
 
-                recipe = entry.recipe;
-                return ValidateRecipe(recipe, out reason);
+                if (!ValidateRewards(entry.rewards, out reason))
+                    return false;
+
+                rewards = entry.rewards;
+                return true;
             }
 
-            var scope = item.GetItemScope();
-            var bestPriority = int.MinValue;
-            var ambiguous = false;
+            var rarity = item.GetRarity();
+            var scopeRewards = rarity?.GetSalvageRewards(item.GetItemScope());
+            var candidate = scopeRewards != null && scopeRewards.Count > 0 ? scopeRewards : fallbackRewards;
 
-            foreach (var rule in rules)
+            if (candidate == null || candidate.Count == 0)
             {
-                if (
-                    rule == null
-                    || (rule.scope & scope) == 0
-                    || (rule.rarityId != -2 && rule.rarityId != item.rarityId)
-                )
-                    continue;
-
-                if (rule.priority > bestPriority)
-                {
-                    bestPriority = rule.priority;
-                    recipe = rule.recipe;
-                    ambiguous = false;
-                }
-                else if (rule.priority == bestPriority)
-                {
-                    ambiguous = true;
-                }
-            }
-
-            if (ambiguous)
-            {
-                reason = "Multiple salvage rules have the same highest priority.";
+                reason = "No salvage rewards are configured for this equipment.";
                 return false;
             }
 
-            recipe ??= fallbackRecipe;
-
-            if (recipe == null)
-            {
-                reason = "No salvage recipe is configured for this equipment.";
+            if (!ValidateRewards(candidate, out reason))
                 return false;
-            }
 
-            return ValidateRecipe(recipe, out reason);
+            rewards = candidate;
+            return true;
         }
 
-        public bool ValidateRecipe(SalvageRecipe recipe, out string reason)
+        public bool ValidateRewards(List<SalvageMaterialAmount> candidate, out string reason)
         {
-            if (!recipe)
+            if (candidate == null || candidate.Count == 0)
             {
-                reason = "The salvage recipe reference is missing.";
-                return false;
-            }
-
-            if (
-                string.IsNullOrEmpty(recipe.id)
-                || recipe.rewards == null
-                || recipe.rewards.Count == 0
-            )
-            {
-                reason = "The salvage recipe is incomplete.";
+                reason = "The salvage rewards are incomplete.";
                 return false;
             }
 
             var materials = new HashSet<Item>();
 
-            foreach (var reward in recipe.rewards)
+            foreach (var reward in candidate)
             {
                 if (
                     reward?.material == null
@@ -137,13 +100,13 @@ namespace PLAYERTWO.ARPGProject
                     || (reward.material.canStack && reward.material.stackCapacity <= 0)
                 )
                 {
-                    reason = "The salvage recipe has an invalid material reward.";
+                    reason = "The salvage rewards contain an invalid material reward.";
                     return false;
                 }
 
                 if (!materials.Add(reward.material))
                 {
-                    reason = "The salvage recipe contains a duplicate material.";
+                    reason = "The salvage rewards contain a duplicate material.";
                     return false;
                 }
             }

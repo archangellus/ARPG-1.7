@@ -229,7 +229,7 @@ Once wired, in Play Mode:
       following the mouse; left-clicking an eligible carried item salvages it
       immediately and updates `Message Text` and the material icon row; the toggle
       stays on for a second consecutive pick.
-- [ ] Left-clicking an ineligible item (favorite/locked/equipped/no recipe) while
+- [ ] Left-clicking an ineligible item (favorite/locked/equipped/no configured rewards) while
       picking shows the eligibility reason in `Message Text` without salvaging it, and
       picking mode stays on.
 - [ ] Right-clicking while picking mode is on cancels it without acting on the item

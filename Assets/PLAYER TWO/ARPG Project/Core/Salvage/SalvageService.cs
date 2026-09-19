@@ -47,7 +47,7 @@ namespace PLAYERTWO.ARPGProject
             if (item.isFavorite) return new(false, "Favorite items cannot be salvaged.");
             if (item.isLocked) return new(false, "Locked items cannot be salvaged.");
             if (!settings) return new(false, "Salvage settings are unavailable.");
-            return settings.TryGetRecipe(item, out _, out var reason) ? new(true) : new(false, reason);
+            return settings.TryGetRewards(item, out _, out var reason) ? new(true) : new(false, reason);
         }
 
         public bool TryCreatePreview(IEnumerable<string> selectedIds, Entity owner, SalvageSettings settings, string providerId, out SalvagePreview preview, out string error)
@@ -74,8 +74,8 @@ namespace PLAYERTWO.ARPGProject
             var totals = new Dictionary<Item, long>();
             foreach (var item in items)
             {
-                settings.TryGetRecipe(item, out var recipe, out _);
-                foreach (var reward in recipe.rewards)
+                settings.TryGetRewards(item, out var rewards, out _);
+                foreach (var reward in rewards)
                 {
                     try
                     {

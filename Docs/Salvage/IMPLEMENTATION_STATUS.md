@@ -15,9 +15,9 @@
 ## Steps 1–10
 
 1. **Complete** — inspected project version/packages, item/inventory/equipment/socket, UI, interaction, spawn, and save paths; no asmdef encloses the core runtime scripts.
-2. **Complete (code/configuration types)** — `SalvageRecipe` and `SalvageSettings` each live in a same-named source file so Unity can create their ScriptableObject assets. Salvage materials are ordinary `Item` assets (stackable, non-equippable) rather than a bespoke material type — see "Materials are inventory items" below. Routing rules, overrides, fallback, version fingerprint, and high-value rarities are authorable. Rules select override first, then unique highest priority, then fallback; malformed recipes are rejected.
+2. **Complete (code/configuration types)** — `SalvageSettings` lives in a same-named source file so Unity can create its ScriptableObject asset; reward lists (`SalvageMaterialAmount`) are plain data, not a separate asset type — see "Salvage rewards live on the rarity" below. Salvage materials are ordinary `Item` assets (stackable, non-equippable) rather than a bespoke material type — see "Materials are inventory items" below. Item overrides, per-rarity-per-type rewards, fallback rewards, version fingerprint, and high-value rarities are authorable. Overrides beat rarity-based rewards beat fallback; malformed reward lists are rejected.
 3. **Complete** — stable GUID identity and favorite/lock metadata are serialized on each item. Old saves lazily receive an ID. Salvage materials are granted directly into the carried inventory (serialized by the existing `InventorySerializer`); `CharacterSalvageState` now only holds idempotency receipts, character-scoped and serialized in the same character snapshot. There is no junk flag — see "Salvage interaction model" below.
-4. **Complete** — `SalvageService.Evaluate` is shared by manual and bulk UI paths. Only carried equipment with a valid recipe is eligible. Favorite/lock protections are enforced.
+4. **Complete** — `SalvageService.Evaluate` is shared by manual and bulk UI paths. Only carried equipment with resolvable salvage rewards is eligible. Favorite/lock protections are enforced.
 5. **Complete** — previews bind item IDs, revisions, provider, rule fingerprint, operation ID, deterministic material totals, returned socket instances, and high-value confirmation.
 6. **Complete** — commit removes all selected equipment before inserting exact attached socket instances, so newly freed grid cells count. Any insertion failure rolls the runtime draft back.
 7. **Complete, awaiting Editor failure-injection verification** — commits are guarded and idempotent with saved receipts. Inventory removals, granted material items, returned sockets, and the receipt enter one `GameSerializer` save. A pre-save exception rolls runtime state back (including removing any material/socket items already inserted into the inventory); filesystem JSON/binary saves use temp-and-replace.
@@ -29,9 +29,9 @@
 
 For a click-by-click procedure to build the Blacksmith window's `GUIBlacksmithRepairPanel` and `GUIBlacksmithSalvagePanel` hierarchies and wire every field listed below, follow `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
 
-1. Create material assets as ordinary **Item** assets (`Create > PLAYER TWO > ARPG Project > Item`, or any project item-creation menu). Enable `canStack` and set a positive `stackCapacity`; leave them non-equippable (base `Item`, not `ItemEquippable`) so they can't be worn. No separate material asset type exists anymore — any stackable `Item` can be used as a salvage reward.
-2. Create recipe assets with **... > Salvage > Recipe** and add positive material rows, referencing those Item assets.
-3. Create one **Salvage Settings** asset. Add item overrides and/or rules. `rarityId = -2` means any rarity, `-1` means plain. Higher rule priority wins; equal highest matches are deliberately invalid. Assign high-value rarity indexes. Increment `configurationVersion` whenever a runtime-relevant policy changes.
+1. Create material assets as ordinary **Item** assets (`Create > PLAYER TWO > ARPG Project > Item`, or any project item-creation menu). Enable `canStack` and set a positive `stackCapacity`; leave them non-equippable (base `Item`, not `ItemEquippable`) so they can't be worn. No separate material asset type exists — any stackable `Item` can be used as a salvage reward.
+2. On each **Item Rarity** asset (`Create > PLAYER TWO > ARPG Project > Item/Item Rarity`, or your existing ones), fill in the **Salvage Settings** section that now sits right under **Socket Settings**: add one **Salvage Slot Setting** entry per item type that rarity should have salvage rewards for, each with a `scope` (e.g. Weapon, Armor, or a composite like the default socket scope) and a `rewards` list of material `Item` + quantity rows. This is the primary way to define "what does salvaging a Rare weapon give?" — one list per rarity per type, authored right on the rarity, the same shape as `socketSlotsByType`.
+3. Create one **Salvage Settings** asset (`Create > PLAYER TWO > ARPG Project > Salvage > Settings`). Optionally add `itemOverrides` (a specific `Item` definition → its own `rewards` list, beating its rarity's rewards) and/or `fallbackRewards` (used for rarity `-1`/plain equipment, or any type a rarity doesn't have a Salvage Slot Setting for). Assign high-value rarity indexes. Increment `configurationVersion` whenever a runtime-relevant policy changes. There is no rule list, priority, or `rarityId` field on this asset anymore — routing by rarity now lives on the rarity itself (step 2).
 4. On the **existing Blacksmith window**, keep `GUIBlacksmith` as the orchestrator only. Assign the same `UITab` prefab used by `GUIMerchant` to `tabPrefab`, a `ToggleGroup` to `toggleGroup`, and an empty tab-row `RectTransform` to `tabsContainer`. Optionally assign a `panelsContainer` `RectTransform` — purely organizational, mirroring `GUIMerchant`'s `sectionsContainer`; if set, both panels are reparented under it at `Start()`. Optionally assign the same style of `switchTabClip` used by the Merchant. `GUIBlacksmith` instantiates the Repair and Salvage tabs at runtime using the Merchant pattern; do **not** create separate tab Buttons or another `GUIWindow`.
 5. Create a `GameObject` with `GUIBlacksmithRepairPanel` for the Repair tab (assign `slot`, `repairButton`, `repairAllButton`, `repairCostText`, `repairAllCostText`, `removeSocketsButton`, `removeSocketsCostText`, and optionally `repairAudio`/`removeSocketsAudio`/`regularColor`/`removeSocketsConfirmationMessage` — these live on this component, not `GUIBlacksmith`), and a second `GameObject` with `GUIBlacksmithSalvagePanel` for the Salvage tab (assign `pickingToggle`, optionally `pickingCursorIcon`, `categoriesContainer` + `categoryButtonPrefab`, `salvageRewardsContainer` + `materialIconPrefab`, `salvageReturnedSocketablesText`, `salvageMessageText`). There is no dropdown, no Select Junk/Rarity/All Eligible/Clear/Confirm buttons to wire by hand, and no per-row selection toggle component — see "Salvage interaction model" below. Assign both `GameObject`s to `GUIBlacksmith.repairPanel`/`salvagePanel`. Full click-by-click steps: `Docs/Salvage/BLACKSMITH_TAB_PANELS_SETUP.md`.
 6. `GUIItem`'s click handling checks `GUIBlacksmith.IsPickingForSalvage` first on every left/right click — no per-row component or wiring is needed for this; it works the moment `salvagePanel` is assigned on `GUIBlacksmith` (step 5). `GUIEquipmentSlot`/`GUIItem` likewise keep addressing the repair slot as `GUIBlacksmith.slot`, a read-only pass-through to `repairPanel.slot`.
@@ -57,8 +57,8 @@ in one step, prompting only when the batch includes a configured high-value rari
   including high-value ones (with confirmation). "All Items" deliberately skips
   configured high-value rarities, since it's a broad/blanket action rather than an
   explicit choice of a specific rarity.
-- Favorite, locked, non-equipment, equipped/non-carried, and missing/invalid-recipe
-  items are blocked in both paths via the shared `SalvageService.Evaluate`. Quest item
+- Favorite, locked, non-equipment, equipped/non-carried, and items with no resolvable
+  salvage rewards are blocked in both paths via the shared `SalvageService.Evaluate`. Quest item
   definitions are non-equipment in the current model. No gold or upgrade refund is
   involved. Stash and consumables are outside scope.
 - The junk item-instance flag is gone entirely: `ItemInstance.isJunk`/`TrySetJunk` and
@@ -66,12 +66,36 @@ in one step, prompting only when the batch includes a configured high-value rari
   carrying an `isJunk` field in their JSON load fine — `JsonUtility` silently ignores
   fields that no longer exist on the target type.
 
+## Salvage rewards live on the rarity
+
+There is no `SalvageRecipe` asset type and no rule list anymore. A reward list
+(`List<SalvageMaterialAmount>`, each a material `Item` + quantity) is plain data,
+defined inline wherever it's needed instead of being a separately-assignable, reusable
+asset:
+
+- `ItemRarity.salvageMaterialsByType` (new, sits right under `socketSlotsByType` in the
+  Inspector, same "Socket Settings" style): a list of `SalvageSlotSetting { scope,
+  rewards }` entries. `ItemRarity.GetSalvageRewards(ItemScope)` picks the most specific
+  scope match, the same tie-break rule `GetMaxSockets` already uses.
+- `SalvageSettings.itemOverrides[].rewards` — an explicit per-`Item`-definition reward
+  list, checked first.
+- `SalvageSettings.fallbackRewards` — used when the item has no rarity (`rarityId -1`)
+  or its rarity has no matching type entry.
+- `SalvageSettings.TryGetRewards(ItemInstance, out rewards, out reason)` resolves in
+  that order (override → rarity's own rewards for the item's type → fallback) and
+  validates whichever list it picks via `ValidateRewards`.
+- This is a breaking change from the earlier `SalvageRoutingRule`/`SalvageRecipe`
+  design: any existing `Salvage Recipe.asset` is gone (deleted along with the type it
+  referenced), and a `Salvage Settings.asset` created against the old shape needs its
+  `itemOverrides`/`fallbackRewards` re-entered — Unity silently drops the old
+  `rules`/`fallbackRecipe` YAML keys on next save rather than erroring.
+
 ## Materials are inventory items
 
 Salvage rewards are granted as ordinary carried `Item` instances instead of a separate material wallet:
 
-- `SalvageMaterialAmount.material` (on `SalvageRecipe`) and `SalvageRewardTotal.material` (on the preview) are plain `Item` references. There is no `SalvageMaterialDefinition` type and no `CharacterSalvageState.materials`/`Get`/`TryCredit` wallet API — `CharacterSalvageState` now only stores idempotency receipts.
-- `SalvageSettings.ValidateRecipe` rejects a reward whose material is stackable but has `stackCapacity <= 0`, since that configuration can't be granted.
+- `SalvageRewardTotal.material` (on the preview) is a plain `Item` reference. There is no `SalvageMaterialDefinition` type and no `CharacterSalvageState.materials`/`Get`/`TryCredit` wallet API — `CharacterSalvageState` now only stores idempotency receipts.
+- `SalvageSettings.ValidateRewards` rejects a reward whose material is stackable but has `stackCapacity <= 0`, since that configuration can't be granted.
 - `SalvageService.TryCommit` grants each material total via a private `TryGrantMaterial` helper: it inserts full-capacity stacks (`Item.stackCapacity`) via `Inventory.TryAddItem` when the material is stackable, or one instance per unit otherwise. Every inserted instance is tracked and removed again if the commit later fails, the same rollback pattern already used for returned socketables.
 - There is no numeric material cap anymore (`SalvageSettings.materialCap` was removed). The natural limit is carried-inventory grid space: a commit that runs out of room fails with "Make space for the `<Item>` reward" and rolls back everything, exactly like an insufficient-space socketable return.
 - Content implication: author salvage-reward `Item` assets as stackable (`canStack = true`, a real `stackCapacity`) and non-equippable. A non-stackable reward material will consume one grid cell per unit, which is almost certainly not what's wanted for a common salvage byproduct.
@@ -83,7 +107,7 @@ Programmatic checks run here: `git diff --check` passed. Static inspection confi
 Run in Unity before release:
 
 - Force script reimport and confirm zero Console compiler errors.
-- Wire a Rare weapon recipe (6 Metal + 2 Essence) and Magic armor recipe (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload.
+- On the Rare `ItemRarity` asset, add a Weapon `Salvage Slot Setting` (6 Metal + 2 Essence) and an Armor one on the Magic `ItemRarity` asset (4 Hide + 1 Essence), using stackable Item assets for Metal/Essence; confirm combined 6/4/3 output lands in the carried inventory as stacked items and survives reload.
 - Exercise every acceptance row in the implementation guide, especially duplicate request replay, full inventory with socket returns, an inventory too full to receive the granted materials, a deliberate `GameSave.Save` failure, post-save listener exception, old-save migration, provider loss, profile switch, and repeated open/close/respawn.
 - Regression-check equip, sell, drop, inventory sort, blacksmith socket removal, and old Binary/JSON/PlayerPrefs save loading.
 - Add and serialize the shared Merchant-style tab prefab, ToggleGroup, tab container, Salvage section, and references on the existing Blacksmith window prefab and assign salvage settings on the existing Blacksmith NPC. No separate salvage window/provider should be created. The prefab was not modified automatically because UI layout/reference choices require Unity Editor serialization.
