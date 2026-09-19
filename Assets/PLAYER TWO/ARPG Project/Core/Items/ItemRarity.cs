@@ -181,6 +181,45 @@ namespace PLAYERTWO.ARPGProject
             return count;
         }
 
+        [System.Serializable]
+        public class SalvageSlotSetting
+        {
+            [Tooltip("The item type this setting applies to.")]
+            public ItemScope scope;
+
+            [Tooltip("The materials granted when salvaging an item of this rarity and type.")]
+            public List<SalvageMaterialAmount> rewards = new();
+        }
+
+        [Header("Salvage Settings")]
+        [Tooltip(
+            "The salvage rewards for an item of this rarity, per item type. Item types with no "
+                + "entry here fall back to the Salvage Settings asset's fallback rewards, if any."
+        )]
+        public List<SalvageSlotSetting> salvageMaterialsByType = new();
+
+        /// <summary>
+        /// Returns the salvage rewards for an item of the given scope, or null if no setting
+        /// matches that scope. Matching follows the same most-specific-wins rule as
+        /// <see cref="GetMaxSockets"/>: a setting matches when it shares at least one flag with
+        /// <paramref name="itemScope"/>, and the setting with the fewest flags wins ties.
+        /// </summary>
+        public virtual List<SalvageMaterialAmount> GetSalvageRewards(ItemScope itemScope)
+        {
+            SalvageSlotSetting bestMatch = null;
+
+            foreach (var setting in salvageMaterialsByType)
+            {
+                if (setting == null || (setting.scope & itemScope) == 0)
+                    continue;
+
+                if (bestMatch == null || CountFlags(setting.scope) < CountFlags(bestMatch.scope))
+                    bestMatch = setting;
+            }
+
+            return bestMatch?.rewards;
+        }
+
         /// <summary>
         /// Rolls the number of sockets an item of the given scope should have, based on
         /// <see cref="socketChance"/> and <see cref="GetMaxSockets"/>. Returns 0 when the scope
