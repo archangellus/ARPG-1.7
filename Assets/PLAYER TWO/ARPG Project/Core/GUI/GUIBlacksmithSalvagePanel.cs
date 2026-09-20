@@ -26,8 +26,8 @@ namespace PLAYERTWO.ARPGProject
         )]
         public Toggle pickingToggle;
 
-        [Tooltip("Optional icon that follows the pointer while picking mode is active.")]
-        public RectTransform pickingCursorIcon;
+        [Tooltip("Optional sprite that follows the pointer while picking mode is active.")]
+        public Image pickingCursorIcon;
 
         [Header("Salvage By Rarity")]
         [Tooltip("Container the rarity category buttons are instantiated into at runtime.")]
@@ -327,7 +327,7 @@ namespace PLAYERTWO.ARPGProject
             if (!isPicking || !pickingCursorIcon || !pickingCursorIcon.gameObject.activeSelf)
                 return;
 
-            pickingCursorIcon.position = EntityInputs.GetPointerPosition();
+            pickingCursorIcon.rectTransform.position = EntityInputs.GetPointerPosition();
         }
     }
 }
