@@ -24,8 +24,18 @@ namespace PLAYERTWO.ARPGProject
         public ItemRarity rarity;
 
         [Tooltip(
-            "The materials granted when salvaging any equipment of this rarity, unless a more "
-                + "specific item override matches."
+            "Optional. Restricts this override to equipment of this type (matched against the "
+                + "item's own scope, e.g. an entry scoped to Weapon matches both Blade and Bow). "
+                + "Leave as None to match every type of equipment with the selected rarity. Add "
+                + "several entries for the same rarity with different scopes to grant different "
+                + "rewards per equipment type — list the more specific (scoped) entries before "
+                + "a general/unscoped one for the same rarity, since the first matching entry wins."
+        )]
+        public ItemScope scope;
+
+        [Tooltip(
+            "The materials granted when salvaging any equipment of this rarity (and scope, if "
+                + "set), unless a more specific item override matches."
         )]
         public List<SalvageMaterialAmount> rewards = new();
     }
@@ -95,10 +105,14 @@ namespace PLAYERTWO.ARPGProject
             }
 
             var effectiveRarity = GetEffectiveRarity(item);
+            var itemScope = item.GetItemScope();
 
             foreach (var entry in rarityOverrides)
             {
                 if (entry == null || entry.rarity != effectiveRarity)
+                    continue;
+
+                if (entry.scope != ItemScope.None && (entry.scope & itemScope) == 0)
                     continue;
 
                 if (!ValidateRewards(entry.rewards, out reason))
