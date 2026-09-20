@@ -84,11 +84,19 @@ this order by `TryGetRewards(ItemInstance, out rewards, out reason)`:
 
 1. `itemOverrides[].rewards` — an explicit per-`Item`-definition reward list. Most
    specific; wins over everything else for that exact `Item` definition.
-2. `rarityOverrides[].rewards` — a `SalvageRarityOverride { rarity, rewards }` entry
-   covering every item of that rarity, regardless of item type/scope. `rarity` is a
-   direct `ItemRarity` asset reference (drag-and-drop in the Inspector, not a raw
-   index), matched against `ItemInstance.GetRarity()`; leave `rarity` unassigned to
-   match plain/no-rarity equipment. Falls back to here when no item override matched.
+2. `rarityOverrides[].rewards` — a `SalvageRarityOverride { rarity, scope, rewards }`
+   entry covering every item of that rarity. `rarity` is a direct `ItemRarity` asset
+   reference (drag-and-drop in the Inspector, not a raw index), matched against
+   `ItemInstance.GetRarity()`; leave `rarity` unassigned to match plain/no-rarity
+   equipment. `scope` (`ItemScope`, optional) additionally restricts the entry to a
+   type of equipment — matched via `(entry.scope & item.GetItemScope()) != 0`, the
+   same bitwise convention `ItemRarity.SocketSlotSetting` already uses, so a `Weapon`-
+   scoped entry matches both `Blade` and `Bow`; leave `scope` at `None` to match every
+   type. List multiple entries for the same `rarity` with different `scope`s (and, if
+   wanted, one unscoped catch-all) to grant different rewards per equipment type within
+   one rarity — entries are matched in list order, first match wins, so put the scoped
+   ones before an unscoped one for the same rarity. Falls back to here when no item
+   override matched.
 3. `fallbackRewards` — used when neither of the above matched.
 
 - **`SalvageSettings.defaultRarity`** (optional `ItemRarity`): a plain/unrolled item
