@@ -317,8 +317,22 @@ namespace PLAYERTWO.ARPGProject
             button.onClick.AddListener(onClick);
         }
 
-        protected virtual void SetPickingVisual(bool picking) =>
+        /// <summary>
+        /// Shows/hides the picking cursor icon and, whenever it's actually shown, hides the
+        /// hardware mouse cursor in its place so the two don't render on top of each other.
+        /// Leaves the hardware cursor alone if no <see cref="pickingCursorSprite"/> was
+        /// configured, so picking mode still has a visible cursor in that case.
+        /// </summary>
+        protected virtual void SetPickingVisual(bool picking)
+        {
+            var showingCursorIcon = picking && m_pickingCursorImage;
             m_pickingCursorImage.SafeCall(icon => icon.gameObject.SetActive(picking));
+            Cursor.visible = !showingCursorIcon;
+        }
+
+        /// <summary>Safety net so the hardware cursor is never left hidden if this panel is
+        /// disabled or the window closes while picking mode was still active.</summary>
+        protected virtual void OnDisable() => Cursor.visible = true;
 
         /// <summary>
         /// Builds the picking cursor's Image at runtime from <see cref="pickingCursorSprite"/>,
