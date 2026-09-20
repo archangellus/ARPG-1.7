@@ -35,7 +35,7 @@ Blacksmith Window (GUIWindow + GUIBlacksmith)
     │   └── Remove Sockets Cost Text              → removeSocketsCostText
     └── Salvage Panel (GUIBlacksmithSalvagePanel) → GUIBlacksmith.salvagePanel
         ├── Directly In Inventory Toggle         → pickingToggle
-        ├── Picking Cursor Icon                  → pickingCursorIcon (optional)
+        ├── (no scene object) pickingCursorSprite → Sprite asset, optional; its icon GameObject is created at runtime
         ├── Categories Container                 → categoriesContainer  ← rarity buttons instantiated here at runtime
         ├── Rewards Container                    → salvageRewardsContainer ← material icons instantiated here after a salvage
         ├── Returned Socketables Text             → salvageReturnedSocketablesText
@@ -171,11 +171,13 @@ configured high-value rarity is involved):
    - Create a UI **Toggle** (e.g. a button-styled toggle with a hammer/pickaxe icon,
      matching the reference mock) → `pickingToggle`. Its `isOn` visual state is what
      shows the mode is active; you don't need to script anything else for it.
-   - Optional: create a small UI **Image** (the "cursor" icon shown while picking is
-     active) anywhere under the Canvas so it renders above everything else → assign to
-     `pickingCursorIcon`. Leave it **inactive** by default — `GUIBlacksmithSalvagePanel`
-     activates/deactivates and repositions it automatically while picking mode is on.
-     If you skip this field, picking mode still works; you just get no cursor visual.
+   - Optional: assign a **Sprite** asset directly to `pickingCursorSprite` (drag it from
+     the Project window, not a Scene object). No scene setup needed — at `Start()`,
+     `GUIBlacksmithSalvagePanel` creates its own Image GameObject for it under the
+     nearest Canvas (so it renders above everything else), sized to the sprite via
+     `SetNativeSize()`, and activates/deactivates/repositions it automatically while
+     picking mode is on. If you skip this field, picking mode still works; you just get
+     no cursor visual.
 3. **Salvage by rarity**:
    - Create an empty child `Categories Container` (with a **Horizontal** or
      **Vertical Layout Group**, matching the reference's stacked buttons) →

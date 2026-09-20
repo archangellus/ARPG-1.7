@@ -26,8 +26,12 @@ namespace PLAYERTWO.ARPGProject
         )]
         public Toggle pickingToggle;
 
-        [Tooltip("Optional sprite that follows the pointer while picking mode is active.")]
-        public Image pickingCursorIcon;
+        [Tooltip(
+            "Optional sprite that follows the pointer while picking mode is active. Drag a "
+                + "Sprite asset directly — no scene setup needed, the icon's GameObject is "
+                + "created at runtime."
+        )]
+        public Sprite pickingCursorSprite;
 
         [Header("Salvage By Rarity")]
         [Tooltip("Container the rarity category buttons are instantiated into at runtime.")]
@@ -54,6 +58,7 @@ namespace PLAYERTWO.ARPGProject
         protected Blacksmith m_blacksmith;
         protected readonly SalvageService m_service = new();
         protected readonly List<GUIBlacksmithMaterialIcon> m_rewardIcons = new();
+        protected Image m_pickingCursorImage;
 
         /// <summary>True while "Directly in Inventory" picking mode is active.</summary>
         public bool isPicking => pickingToggle && pickingToggle.isOn;
@@ -313,21 +318,47 @@ namespace PLAYERTWO.ARPGProject
         }
 
         protected virtual void SetPickingVisual(bool picking) =>
-            pickingCursorIcon.SafeCall(icon => icon.gameObject.SetActive(picking));
+            m_pickingCursorImage.SafeCall(icon => icon.gameObject.SetActive(picking));
+
+        /// <summary>
+        /// Builds the picking cursor's Image at runtime from <see cref="pickingCursorSprite"/>,
+        /// parented under the nearest Canvas so it renders above the rest of the UI and follows
+        /// the pointer regardless of this panel's own layout. No scene object is needed for it.
+        /// </summary>
+        protected virtual void InitializePickingCursor()
+        {
+            if (!pickingCursorSprite)
+                return;
+
+            var canvas = GetComponentInParent<Canvas>();
+
+            if (!canvas)
+                return;
+
+            var go = new GameObject("Picking Cursor Icon", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(canvas.transform, false);
+
+            m_pickingCursorImage = go.GetComponent<Image>();
+            m_pickingCursorImage.sprite = pickingCursorSprite;
+            m_pickingCursorImage.raycastTarget = false;
+            m_pickingCursorImage.SetNativeSize();
+            go.SetActive(false);
+        }
 
         protected virtual void Start()
         {
             InitializeCategories();
+            InitializePickingCursor();
             pickingToggle?.onValueChanged.AddListener(SetPickingVisual);
             SetPickingVisual(isPicking);
         }
 
         protected virtual void Update()
         {
-            if (!isPicking || !pickingCursorIcon || !pickingCursorIcon.gameObject.activeSelf)
+            if (!isPicking || !m_pickingCursorImage || !m_pickingCursorImage.gameObject.activeSelf)
                 return;
 
-            pickingCursorIcon.rectTransform.position = EntityInputs.GetPointerPosition();
+            m_pickingCursorImage.rectTransform.position = EntityInputs.GetPointerPosition();
         }
     }
 }
